@@ -2,27 +2,29 @@ import express from "express";
 // import { Loan } from "../models/Loan";
 import { Loan } from "../models/loan";
 import Joi from "joi";
-import { ValidationError } from "sequelize";
-const { Op } = require("sequelize");
+import { Sequelize, ValidationError, Op } from "sequelize";
 import { paging, enumKeys } from "../helpers/helper";
 import { LoanTaker } from "../models/loanTaker";
 import { LoanTransaction } from "../models/loanTransaction";
 import moment from "moment";
+import { Distributor } from "../models/distributor";
+import { DistributorCredit } from "../models/DistributorCredit";
+import { DistributorDebit } from "../models/DistributorDebit";
 
 const cloudinary = require("cloudinary").v2;
-export class TodayLoanTransactions {
-  private static instance: TodayLoanTransactions | null = null;
+export class TodayTransactions {
+  private static instance: TodayTransactions | null = null;
 
   private constructor() {}
 
-  static init(): TodayLoanTransactions {
+  static init(): TodayTransactions {
     if (this.instance == null) {
-      this.instance = new TodayLoanTransactions();
+      this.instance = new TodayTransactions();
     }
 
     return this.instance;
   }
-  async todayCombinedData(req: express.Request, res: express.Response) {
+  async todayLoanTransactions(req: express.Request, res: express.Response) {
     try {
       let todayDate: any;
 
@@ -44,20 +46,80 @@ export class TodayLoanTransactions {
       };
 
       const loanTakersData = await LoanTaker.findAll({
-        where: where,
+        // where: where,
         include: [
-            {
-                model: Loan,
-                where: where,
-            },
-            {
-                model: LoanTransaction,
-                where: where,
-            },
+          {
+            model: Loan,
+            where: where,
+            required: false,
+          },
+          {
+            model: LoanTransaction,
+            where: where,
+            required: false,
+          },
         ],
+        where: {
+          [Op.or]: [
+            Sequelize.literal("Loans.id IS NOT NULL"), // Checking if there are any associated loans
+            Sequelize.literal("LoanTransactions.id IS NOT NULL"), // Checking if there are any associated loan transactions
+          ],
+        },
       });
 
       res.Success("Success", loanTakersData);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  }
+
+  async todayDistributorsTransactions(
+    req: express.Request,
+    res: express.Response
+  ) {
+    try {
+      let todayDate: any;
+
+      if (req.query.date) {
+        // Parse and format the provided date string
+        todayDate = req.query.date;
+      } else {
+        // If no date is provided, default to today's date
+        todayDate = moment(new Date()).format("YYYY-MM-DD 00:00:00");
+      }
+
+      // Set the start and end of the day for the date
+      const startDate = moment(todayDate).startOf("day").toDate();
+
+      const where: any = {
+        createdAt: {
+          [Op.gte]: startDate,
+        },
+      };
+
+      const distributorsData = await Distributor.findAll({
+        include: [
+          {
+            model: DistributorCredit,
+            where: where,
+            required: false,
+          },
+          {
+            model: DistributorDebit,
+            where: where,
+            required: false,
+          },
+        ],
+        where: {
+          [Op.or]: [
+            Sequelize.literal("`DistributorCredits`.`id` IS NOT NULL"), // Checking if there are any associated credits
+            Sequelize.literal("`DistributorDebits`.`id` IS NOT NULL"), // Checking if there are any associated debits
+          ],
+        },
+      });
+
+      res.Success("Success", distributorsData);
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: "Internal Server Error" });

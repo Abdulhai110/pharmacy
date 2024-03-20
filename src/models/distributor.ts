@@ -9,6 +9,8 @@ import {
 import { sequelize } from "../config/connection";
 import { StatusEnum } from "../constants/enum";
 import { enumKeys } from "../helpers/helper";
+import { DistributorCredit } from "./DistributorCredit";
+import { DistributorDebit } from "./DistributorDebit";
 export class Distributor extends Model<
   InferAttributes<Distributor>,
   InferCreationAttributes<Distributor>
@@ -86,3 +88,10 @@ Distributor.init(
     tableName: "distributors",
   }
 );
+
+Distributor.hasMany(DistributorCredit, {
+  foreignKey: "distributor_id",
+});
+Distributor.hasMany(DistributorDebit, {
+  foreignKey: "distributor_id",
+});

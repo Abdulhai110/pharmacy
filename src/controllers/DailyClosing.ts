@@ -1,5 +1,4 @@
 import express from "express";
-// import { Loan } from "../models/Loan";
 import { Loan } from "../models/loan";
 import { DistributorLoan } from "../models/DistributorLoan";
 import { DistributorDebit } from "../models/DistributorDebit";
@@ -10,13 +9,16 @@ import { paging, enumKeys } from "../helpers/helper";
 import { LoanTaker } from "../models/loanTaker";
 import { Distributor } from "../models/distributor";
 import { DailyClosing as DC } from "../models/DailyClosing";
-
+import { LoanTransaction } from "../models/loanTransaction";
+import { Sequelize } from 'sequelize';
+import PDFDocument from 'pdfkit';
+import fs from 'fs';
 const cloudinary = require("cloudinary").v2;
 
 export class DailyClosing {
   private static instance: DailyClosing | null = null;
 
-  private constructor() {}
+  private constructor() { }
 
   static init(): DailyClosing {
     if (this.instance == null) {
@@ -81,7 +83,7 @@ export class DailyClosing {
     }
 
     const data = await DC.findAndCountAll({
-      include: { model: Loan },
+      // include: { model: Loan },
       where,
       order,
       distinct: true,
@@ -97,38 +99,66 @@ export class DailyClosing {
     }
   }
 
+
   public async save(req: express.Request, res: express.Response) {
     const schema = Joi.object().keys({
-      closing_date: Joi.date().required(),
-      total_sales: Joi.number().required(),
-      previous_day_closing_sale: Joi.number().required(),
-      loan: Joi.number().required(),
-      loan_return: Joi.number().required(),
-      debited_amount: Joi.number().required(),
-      credited_amount: Joi.number().required(),
-      grand_total: Joi.number().required(),
+      closingDate: Joi.date().required(),
+      rsTen: Joi.number().required(),
       status: Joi.required(),
+      rsTwenty: Joi.number().required(),
+      rsFifty: Joi.number().required(),
+      rsHundred: Joi.number().required(),
+      rs5hundred: Joi.number().required(),
+      rsThousand: Joi.number().required(),
+      rs5thousand: Joi.number().required(),
+      coins: Joi.number().required(),
+      rsTotal: Joi.number().required(),
+      jazzCash: Joi.number().required(),
+      easyPasa: Joi.number().required(),
+      bank: Joi.number().required(),
+      accountsTotal: Joi.number().required(),
+      todayGrandTotal: Joi.number().required(), // Assuming grand_total represents todayGrandTotal
+      yesterdaySale: Joi.number().required(),
+      yesterdayTotalAmount: Joi.number().required(),
+      todaySale: Joi.number().required(),
+      salesTotal: Joi.number().required(),
     });
+
 
     const { error, value } = schema.validate(req.body);
     if (error instanceof ValidationError) {
       return res.Error(error.details[0].message);
     }
-    console.log(req.body.date);
+    console.log(req.body);
     const catData = {
-      closing_date: req.body.closing_date,
-      total_sales: req.body.total_sales,
-      description: req.body.description,
-      previous_day_closing_sale: req.body.previous_day_closing_sale,
-      loan: req.body.loan,
-      loan_return: req.body.loan_return, // Make bill_no optional using conditional assignment
-      debited_amount: req.body.debited_amount,
-      credited_amount: req.body.credited_amount,
-      grand_total: req.body.grand_total,
-      status: req.body.status,
+      // id: req.body.id,
+      loanTakerId: req.body.loanTakerId,
+      distributorId: req.body.distributorId,
+      closingDate: req.body.closingDate,
+      rsTen: req.body.rsTen,
+      rsTwenty: req.body.rsTwenty,
+      rsFifty: req.body.rsFifty,
+      rsHundred: req.body.rsHundred,
+      rs5hundred: req.body.rs5hundred,
+      rsThousand: req.body.rsThousand,
+      rs5thousand: req.body.rs5thousand,
+      coins: req.body.coins,
+      rsTotal: req.body.rsTotal,
+      jazzCash: req.body.jazzCash,
+      easyPasa: req.body.easyPasa,
+      bank: req.body.bank,
+      accountsTotal: req.body.accountsTotal,
+      todayGrandTotal: req.body.todayGrandTotal,
+      yesterdaySale: req.body.yesterdaySale,
+      yesterdayTotalAmount: req.body.yesterdayTotalAmount,
+      todaySale: req.body.todaySale,
+      salesTotal: req.body.salesTotal,
+      // description: req.body.description,
+      // status: req.body.status,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+
     // const distributorId = Number(req.body.distributor_id);
     // const additionalAmount = req.body.amount;
     try {
@@ -209,17 +239,126 @@ export class DailyClosing {
       return;
     }
 
-    const result = await DistributorDebit.findOne({
+    const result = await DC.findOne({
       where: { id: Number(req.body.id) },
+      include: [
+        {
+          model: LoanTaker,
+          include: [
+            {
+              model: LoanTransaction,
+              required: false,
+              where: {
+                transaction_date: {
+                  [Op.eq]: Sequelize.col('DailyClosing.closingDate'),
+                },
+              },
+            },
+            {
+              model: Loan,
+              required: false,
+              where: {
+                date: {
+                  [Op.eq]: Sequelize.col('DailyClosing.closingDate'),
+                },
+              },
+            },
+          ],
+          required: false,
+        },
+      ],
     });
     // console.log(review);
 
     if (result === null) {
-      res.Error("data not found");
+      res.Error("Data not found");
       return;
     }
 
     res.Success("Detail", result);
+  }
+
+  public async downloadPdf(req: express.Request, res: express.Response) {
+    const schema = Joi.object().keys({
+      id: Joi.number().required(),
+    });
+
+    console.log('bodyyyyyyy', req.body.params);
+
+    const { error, value } = schema.validate(req.body.params);
+
+    if (error instanceof ValidationError) {
+      res.Error(error.details[0].message);
+      return;
+    }
+
+
+    try {
+      const result = await DC.findOne({
+        where: { id: Number(req.body.id) },
+        include: [
+          {
+            model: LoanTaker,
+            include: [
+              {
+                model: LoanTransaction,
+                required: false,
+                where: {
+                  transaction_date: {
+                    [Op.eq]: Sequelize.col('DailyClosing.closingDate'),
+                  },
+                },
+              },
+              {
+                model: Loan,
+                required: false,
+                where: {
+                  date: {
+                    [Op.eq]: Sequelize.col('DailyClosing.closingDate'),
+                  },
+                },
+              },
+            ],
+            required: false,
+          },
+        ],
+      });
+
+      if (!result) {
+        res.Error("Data not found");
+        return;
+      }
+
+
+
+      const doc = new PDFDocument();
+
+      // Buffer to store the PDF data
+      let buffer = Buffer.from('');
+
+      // Pipe the PDF document to the buffer
+      doc.on('data', (chunk) => {
+        buffer = Buffer.concat([buffer, chunk]);
+      });
+
+      // Once the PDF document is fully generated
+      doc.on('end', () => {
+        // Set the response headers to indicate a PDF file
+        // res.setHeader('Content-Type', 'application/pdf');
+        // res.setHeader('Content-Disposition', 'attachment; filename="detail.pdf"');
+        // Send the PDF data as the response
+        res.send(buffer);
+      });
+
+      // Write the retrieved information to the PDF document
+      doc.text(JSON.stringify(result, null, 2));
+
+      // Finalize the PDF document
+      doc.end();
+    } catch (error) {
+      console.error("Error fetching closing details:", error);
+      res.Error("An error occurred while fetching closing details");
+    }
   }
 
   async updateStatus(req: express.Request, res: express.Response) {

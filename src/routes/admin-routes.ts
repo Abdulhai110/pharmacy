@@ -6,7 +6,7 @@ import {
   DailyClosing,
   LoanController,
   LoanTakerController,
-  TodayLoanTransactions,
+  TodayTransactions,
   DistributorController,
   LoanTransactionController,
   DistributorDebitController,
@@ -122,6 +122,7 @@ export class AdminRoutes extends RoutesConfig {
     const controller = DailyClosing.init();
     route.get("/list", controller.list);
     route.post("/detail", controller.detail);
+    route.post("/downloadPdf", controller.downloadPdf);
     route.post("/add", controller.save);
     route.post("/update", controller.update);
     route.post("/update-status", controller.updateStatus);
@@ -143,8 +144,12 @@ export class AdminRoutes extends RoutesConfig {
 
   todayLoansTransactions() {
     const route = express.Router();
-    const controller = TodayLoanTransactions.init();
-    route.get("/loan-history", controller.todayCombinedData);
+    const controller = TodayTransactions.init();
+    route.get("/loan-transactions", controller.todayLoanTransactions);
+    route.get(
+      "/distributors-transactions",
+      controller.todayDistributorsTransactions
+    );
     route.get("/list", controller.list);
     route.post("/detail", controller.detail);
     route.post("/add", controller.save);

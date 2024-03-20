@@ -69,6 +69,9 @@ module.exports = {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
+      description: {
+        type: DataTypes.STRING(100),
+      },
       // Add other fields as needed
       createdAt: {
         type: "TIMESTAMP",
@@ -85,6 +88,6 @@ module.exports = {
     });
   },
   down: (queryInterface: QueryInterface) => {
-    return queryInterface.dropTable("daily_closings");
+    return queryInterface.dropTable("daily_ledger");
   },
 };

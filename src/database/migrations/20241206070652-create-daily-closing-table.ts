@@ -10,58 +10,93 @@ module.exports = {
         primaryKey: true,
         autoIncrement: true,
       },
-      loan_id: {
+      loanTakerId: {
         type: DataTypes.BIGINT.UNSIGNED,
-        allowNull: false,
+        autoIncrement: false,
       },
-      closing_date: {
+      distributorId: {
+        type: DataTypes.BIGINT.UNSIGNED,
+        autoIncrement: false,
+      },
+      closingDate: {
         type: DataTypes.DATEONLY,
         allowNull: false,
       },
-      total_sales: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-      },
-      // total_payments: {
-      //   type: DataTypes.INTEGER,
-      //   allowNull: false,
-      // },
-      // total_expenses: {
-      //   type: DataTypes.INTEGER,
-      //   allowNull: false,
-      // },
-      previous_day_closing_sale: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-      },
-      loan: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-      },
-      loan_return: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-      },
-      debited_amount: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-      },
-      credited_amount: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-      },
-      grand_total: {
+      rsTen: {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
       description: {
         type: DataTypes.STRING(100),
       },
-      status: {
-        type: DataTypes.ENUM(...enumKeys(StatusEnum)),
-        defaultValue: StatusEnum.Active,
+      rsTwenty: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+        allowNull: false,
       },
-      // Add other fields as needed
+      rsFifty: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      rsHundred: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      rs5hundred: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      rsThousand: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      rs5thousand: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      coins: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      rsTotal: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      jazzCash: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      easyPasa: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      bank: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      accountsTotal: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      todayGrandTotal: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      yesterdaySale: {
+        type: DataTypes.INTEGER,
+      },
+      yesterdayTotalAmount: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      todaySale: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      salesTotal: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
       createdAt: {
         type: "TIMESTAMP",
         defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),

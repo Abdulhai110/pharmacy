@@ -89,10 +89,10 @@ LoanTaker.init(
   }
 );
 
-LoanTaker.hasOne(LoanTransaction, {
+LoanTaker.hasMany(LoanTransaction, {
   foreignKey: "loan_taker_id",
 });
-LoanTaker.hasOne(Loan, {
+LoanTaker.hasMany(Loan, {
   foreignKey: "loan_taker_id",
 });
 

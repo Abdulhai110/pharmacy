@@ -2,7 +2,7 @@ import { DailyLedger } from "./DailyLedger";
 import { DailyClosing } from "./DailyClosing";
 import { LoanController } from "./LoanController";
 import { LoanTakerController } from "./LoanTakerController";
-import { TodayLoanTransactions } from "./TodayLoanTransactions";
+import { TodayTransactions } from "./TodayLoanTransactions";
 import { DistributorController } from "./DistributorController";
 import { LoanTransactionController } from "./LoanTransactionController";
 import { DistributorDebitController } from "./DistributorDebitController";
@@ -15,7 +15,7 @@ export {
   LoanController,
   LoanTakerController,
   DistributorController,
-  TodayLoanTransactions,
+  TodayTransactions,
   LoanTransactionController,
   DistributorDebitController,
   DistributorCreditController,
