@@ -1,6 +1,6 @@
-import express from 'express';
-import { Middleware, callback } from './middleware';
+import express, { Request, Response, NextFunction } from 'express';
+import { Middleware } from './middleware';
 export declare class AuthMiddleware extends Middleware {
     constructor(app: express.Application);
-    handle(req: express.Request, res: express.Response, next: callback): Promise<void>;
+    handle(req: Request, res: Response, next: NextFunction): Promise<express.Response<any, Record<string, any>>>;
 }

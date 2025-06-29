@@ -14,14 +14,13 @@ export class DistributorDebit extends Model<
   InferCreationAttributes<DistributorDebit>
 > {
   id: number | null;
-  distributor_id: number;
+  distributorId: number;
   description: string;
   amount: number;
-  bill_no: number;
+  billNo: number;
   date?: Date;
-  installment_amount?: number;
-  installment_count?: number;
-  payment_source: PaymentSourceEnum;
+  installmentAmount?: number;
+  installmentCount?: number;
   status: StatusEnum;
   createdAt?: Date;
   updatedAt?: Date;
@@ -34,59 +33,45 @@ DistributorDebit.init(
       primaryKey: true,
       autoIncrement: true,
     },
-    distributor_id: {
+    distributorId: {
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
     },
     date: {
-      type: DataTypes.DATEONLY,
+      type: DataTypes.DATE,
       allowNull: false,
+      defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
     },
     amount: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.BIGINT,
       allowNull: false,
     },
-    installment_amount: {
+    installmentAmount: {
+      type: DataTypes.BIGINT,
+      defaultValue: 0,
+      allowNull: true,
+    },
+    installmentCount: {
       type: DataTypes.INTEGER,
       defaultValue: 0,
       allowNull: true,
     },
-    installment_count: {
-      type: DataTypes.INTEGER,
-      defaultValue: 0,
-      allowNull: true,
-    },
-    bill_no: {
-      type: DataTypes.INTEGER,
+    billNo: {
+      type: DataTypes.STRING(20),
       allowNull: true,
     },
     description: {
       type: DataTypes.STRING(100),
     },
-    payment_source: {
-      type: DataTypes.ENUM(...enumKeys(PaymentSourceEnum)),
-      defaultValue: PaymentSourceEnum.CASH,
-    },
     status: {
       type: DataTypes.ENUM(...enumKeys(StatusEnum)),
       defaultValue: StatusEnum.Active,
     },
-    createdAt: {
-      type: "TIMESTAMP",
-      defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
-      allowNull: false,
-    },
-    updatedAt: {
-      type: "TIMESTAMP",
-      defaultValue: Sequelize.literal(
-        "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-      ),
-      allowNull: false,
-    },
+
   },
   {
     sequelize,
-    timestamps: false,
+    timestamps: true,
     tableName: "distributor-debits",
   }
 );

@@ -16,7 +16,7 @@ const cloudinary = require("cloudinary").v2;
 export class DailyLedger {
   private static instance: DailyLedger | null = null;
 
-  private constructor() {}
+  private constructor() { }
 
   static init(): DailyLedger {
     if (this.instance == null) {
@@ -36,7 +36,7 @@ export class DailyLedger {
     }
 
     const where: any = {};
-    // where["distributor_id"] = req.query.id;
+    // where["distributorId"] = req.query.id;
     // if (qp.keyword) {
     //   where["name"] = { [Op.like]: "%" + qp.keyword + "%" };
     // }
@@ -47,9 +47,9 @@ export class DailyLedger {
       };
     }
 
-    // if (qp.loan_type && qp.loan_type != "" && qp.loan_type != null) {
-    //   where["loan_type"] = {
-    //     [Op.eq]: qp.loan_type,
+    // if (qp.loanType && qp.loanType != "" && qp.loanType != null) {
+    //   where["loanType"] = {
+    //     [Op.eq]: qp.loanType,
     //   };
     // }
 
@@ -65,9 +65,9 @@ export class DailyLedger {
     //   };
     // }
 
-    // if (qp.bill_no && qp.bill_no != "" && qp.bill_no != null) {
-    //   where["bill_no"] = {
-    //     [Op.eq]: qp.bill_no,
+    // if (qp.billNo && qp.billNo != "" && qp.billNo != null) {
+    //   where["billNo"] = {
+    //     [Op.eq]: qp.billNo,
     //   };
     // }
 
@@ -142,7 +142,7 @@ export class DailyLedger {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    // const distributorId = Number(req.body.distributor_id);
+    // const distributorId = Number(req.body.distributorId);
     // const additionalAmount = req.body.amount;
     try {
       const instance = await DL.create(catData);
@@ -158,16 +158,16 @@ export class DailyLedger {
   public async update(req: express.Request, res: express.Response) {
     const schema = Joi.object().keys({
       id: Joi.number().required(),
-      distributor_id: Joi.number().required(),
-      // loan_type: Joi.string().optional().valid("cash", "items"),
+      distributorId: Joi.number().required(),
+      // loanType: Joi.string().optional().valid("cash", "items"),
       amount: Joi.number().optional().integer().min(1),
-      bill_no: Joi.number().optional().integer(),
+      billNo: Joi.number().optional().integer(),
       description: Joi.string().optional(),
-      payment_source: Joi.optional(),
+      paymentSourceId: Joi.optional(),
       status: Joi.optional(),
-      return_date: Joi.optional(),
-      installment_count: Joi.optional(),
-      installment_amount: Joi.optional(),
+      returnDate: Joi.optional(),
+      installmentCount: Joi.optional(),
+      installmentAmount: Joi.optional(),
     });
 
     const { error, value } = schema.validate(req.body);
@@ -184,16 +184,16 @@ export class DailyLedger {
     }
 
     const debitData = {
-      distributor_id: req.body.distributor_id,
+      distributorId: req.body.distributorId,
       amount: req.body.amount,
       description: req.body.description ?? null,
-      bill_no: req.body.bill_no ?? null, // Make bill_no optional using conditional assignment
+      billNo: req.body.billNo ?? null, // Make billNo optional using conditional assignment
       status: req.body.status,
-      payment_source: req.body.payment_source ?? "",
+      paymentSourceId: req.body.paymentSourceId ?? "",
       updatedAt: new Date(),
-      return_date: req.body.return_date ?? null,
-      installment_count: req.body.installment_count ?? 0,
-      installment_amount: req.body.installment_amount ?? 0,
+      returnDate: req.body.returnDate ?? null,
+      installmentCount: req.body.installmentCount ?? 0,
+      installmentAmount: req.body.installmentAmount ?? 0,
     };
     try {
       const instance = await DistributorDebit.update(debitData, {

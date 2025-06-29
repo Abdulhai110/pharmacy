@@ -10,12 +10,13 @@ import moment from "moment";
 import { Distributor } from "../models/distributor";
 import { DistributorCredit } from "../models/DistributorCredit";
 import { DistributorDebit } from "../models/DistributorDebit";
+import { LoanTypeEnum } from "../constants/enum";
 
 const cloudinary = require("cloudinary").v2;
 export class TodayTransactions {
   private static instance: TodayTransactions | null = null;
 
-  private constructor() {}
+  private constructor() { }
 
   static init(): TodayTransactions {
     if (this.instance == null) {
@@ -147,9 +148,9 @@ export class TodayTransactions {
       };
     }
 
-    if (qp.loan_type && qp.loan_type != "" && qp.loan_type != null) {
-      where["loan_type"] = {
-        [Op.eq]: qp.loan_type,
+    if (qp.loanType && qp.loanType != "" && qp.loanType != null) {
+      where["loanType"] = {
+        [Op.eq]: qp.loanType,
       };
     }
 
@@ -186,14 +187,14 @@ export class TodayTransactions {
 
   public async save(req: express.Request, res: express.Response) {
     const schema = Joi.object().keys({
-      loan_taker_id: Joi.number().required(),
-      loan_type: Joi.string().required().valid("cash", "items"),
+      loanTakerId: Joi.number().required(),
+      loanType: Joi.string().required().valid(...enumKeys(LoanTypeEnum)),
       amount: Joi.number().required().integer().min(1),
-      bill_no: Joi.number().optional().integer(),
+      billNo: Joi.number().optional().integer(),
       description: Joi.string().optional(),
-      return_date: Joi.optional(),
-      installment_count: Joi.optional(),
-      installment_amount: Joi.optional(),
+      returnDate: Joi.optional(),
+      installmentCount: Joi.optional(),
+      installmentAmount: Joi.optional(),
       date: Joi.string().required(),
       status: Joi.required(),
     });
@@ -204,20 +205,20 @@ export class TodayTransactions {
     }
 
     const catData = {
-      loan_taker_id: req.body.loan_taker_id,
-      loan_type: req.body.loan_type,
+      loanTakerId: req.body.loanTakerId,
+      loanType: req.body.loanType,
       amount: req.body.amount,
       description: req.body.description ?? null,
-      installment_amount: req.body.installment_amount ?? 0,
-      installment_count: req.body.installment_count ?? 0,
-      return_date: req.body.return_date ?? null,
-      bill_no: req.body.bill_no ?? null, // Make bill_no optional using conditional assignment
+      installmentAmount: req.body.installmentAmount ?? 0,
+      installmentCount: req.body.installmentCount ?? 0,
+      returnDate: req.body.returnDate ?? null,
+      billNo: req.body.billNo ?? null, // Make billNo optional using conditional assignment
       date: req.body.date,
       status: req.body.status,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    const loanTakerId = Number(req.body.loan_taker_id);
+    const loanTakerId = Number(req.body.loanTakerId);
     const additionalAmount = req.body.amount;
     try {
       const instance = await Loan.create(catData);
@@ -226,8 +227,8 @@ export class TodayTransactions {
       });
 
       if (loanTaker) {
-        let currentLoanAmount = loanTaker.loan_amount;
-        let remainingLoanAmount = loanTaker.remaining_amount;
+        let currentLoanAmount = loanTaker.loanAmount;
+        let remainingLoanAmount = loanTaker.remainingAmount;
 
         currentLoanAmount += additionalAmount;
 
@@ -237,8 +238,8 @@ export class TodayTransactions {
         // Update the loan amount in the database
         await LoanTaker.update(
           {
-            loan_amount: currentLoanAmount,
-            remaining_amount: remainingLoanAmount,
+            loanAmount: currentLoanAmount,
+            remainingAmount: remainingLoanAmount,
           },
           { where: { id: loanTakerId } }
         );
@@ -257,15 +258,15 @@ export class TodayTransactions {
   public async update(req: express.Request, res: express.Response) {
     const schema = Joi.object().keys({
       id: Joi.number().required(),
-      loan_taker_id: Joi.number().required(),
-      loan_type: Joi.string().optional().valid("cash", "items"),
+      loanTakerId: Joi.number().required(),
+      loanType: Joi.string().optional().valid(...enumKeys(LoanTypeEnum)),
       amount: Joi.number().optional().integer().min(1),
-      bill_no: Joi.number().optional().integer(),
+      billNo: Joi.number().optional().integer(),
       description: Joi.string().optional(),
       status: Joi.optional(),
-      return_date: Joi.optional(),
-      installment_count: Joi.optional(),
-      installment_amount: Joi.optional(),
+      returnDate: Joi.optional(),
+      installmentCount: Joi.optional(),
+      installmentAmount: Joi.optional(),
     });
 
     const { error, value } = schema.validate(req.body);
@@ -282,16 +283,16 @@ export class TodayTransactions {
     }
 
     const LoanData = {
-      loan_taker_id: req.body.loan_taker_id,
-      loan_type: req.body.loan_type,
+      loanTakerId: req.body.loanTakerId,
+      loanType: req.body.loanType,
       amount: req.body.amount,
       description: req.body.description ?? null,
-      bill_no: req.body.bill_no ?? null, // Make bill_no optional using conditional assignment
+      billNo: req.body.billNo ?? null, // Make billNo optional using conditional assignment
       status: req.body.status,
       updatedAt: new Date(),
-      return_date: req.body.return_date ?? null,
-      installment_count: req.body.installment_count ?? 0,
-      installment_amount: req.body.installment_amount ?? 0,
+      returnDate: req.body.returnDate ?? null,
+      installmentCount: req.body.installmentCount ?? 0,
+      installmentAmount: req.body.installmentAmount ?? 0,
     };
     try {
       const instance = await Loan.update(LoanData, {

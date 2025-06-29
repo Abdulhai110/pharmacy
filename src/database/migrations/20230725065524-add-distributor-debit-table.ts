@@ -1,6 +1,6 @@
 import { QueryInterface, DataTypes, QueryTypes } from "sequelize";
 import Sequelize from "sequelize";
-import { StatusEnum, PaymentSourceEnum } from "../../constants/enum";
+import { StatusEnum } from "../../constants/enum";
 import { enumKeys } from "../../helpers/helper";
 module.exports = {
   up: (queryInterface: QueryInterface) => {
@@ -10,54 +10,49 @@ module.exports = {
         primaryKey: true,
         autoIncrement: true,
       },
-      distributor_id: {
+      distributorId: {
         type: DataTypes.BIGINT.UNSIGNED,
         allowNull: false,
       },
       date: {
-        type: DataTypes.DATEONLY,
+        type: DataTypes.DATE,
         allowNull: false,
+        defaultValue: DataTypes.NOW
       },
 
       amount: {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
-      installment_amount: {
+      installmentAmount: {
         type: DataTypes.INTEGER,
         defaultValue: 0,
         allowNull: true,
       },
-      installment_count: {
+      installmentCount: {
         type: DataTypes.INTEGER,
         defaultValue: 0,
         allowNull: true,
       },
-      bill_no: {
+      billNo: {
         type: DataTypes.INTEGER,
         allowNull: true,
       },
       description: {
         type: DataTypes.STRING(100),
       },
-      payment_source: {
-        type: DataTypes.ENUM(...enumKeys(PaymentSourceEnum)),
-        defaultValue: PaymentSourceEnum.CASH,
-      },
       status: {
         type: DataTypes.ENUM(...enumKeys(StatusEnum)),
         defaultValue: StatusEnum.Active,
       },
       createdAt: {
-        type: "TIMESTAMP",
-        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
+        type: Sequelize.DATE,
+        defaultValue: DataTypes.NOW,
         allowNull: false,
       },
       updatedAt: {
-        type: "TIMESTAMP",
-        defaultValue: Sequelize.literal(
-          "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-        ),
+        type: Sequelize.DATE,
+        defaultValue: DataTypes.NOW,
         allowNull: false,
       },
     });

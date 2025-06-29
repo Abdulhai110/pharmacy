@@ -15,7 +15,7 @@ export class DailyLedger extends Model<
   InferCreationAttributes<DailyLedger>
 > {
   id: number | null;
-  //   distributor_id: number;
+  //   distributorId: number;
   ledger_date: Date;
   rs_ten: number;
   rs_twenty: number;
@@ -45,8 +45,9 @@ DailyLedger.init(
       autoIncrement: true,
     },
     ledger_date: {
-      type: DataTypes.DATEONLY,
+      type: DataTypes.DATE,
       allowNull: false,
+      defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
     },
 
     rs_ten: {
@@ -114,24 +115,13 @@ DailyLedger.init(
     //   type: DataTypes.ENUM(...enumKeys(StatusEnum)),
     //   defaultValue: StatusEnum.Active,
     // },
-    createdAt: {
-      type: "TIMESTAMP",
-      defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
-      allowNull: false,
-    },
-    updatedAt: {
-      type: "TIMESTAMP",
-      defaultValue: Sequelize.literal(
-        "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-      ),
-      allowNull: false,
-    },
+
   },
   {
     sequelize,
-    timestamps: false,
+    timestamps: true,
     tableName: "daily_ledger",
   }
 );
 
-// LoanTaker.belongsTo(Loan, { foreignKey: 'loan_taker_id' });
+// LoanTaker.belongsTo(Loan, { foreignKey: 'loanTakerId' });

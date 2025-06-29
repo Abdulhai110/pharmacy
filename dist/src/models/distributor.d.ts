@@ -6,9 +6,9 @@ export declare class Distributor extends Model<InferAttributes<Distributor>, Inf
     companyName: string;
     phoneNo: string;
     description: string;
-    loan_amount?: number;
-    remaining_amount?: number;
-    paid_amount?: number;
+    loanAmount?: number;
+    remainingAmount?: number;
+    paidAmount?: number;
     status: StatusEnum;
     createdAt?: Date;
     updatedAt?: Date;

@@ -8,6 +8,17 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __rest = (this && this.__rest) || function (s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+                t[p[i]] = s[p[i]];
+        }
+    return t;
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -15,11 +26,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.LoanTakerController = void 0;
 const loanTaker_1 = require("../models/loanTaker");
 const joi_1 = __importDefault(require("joi"));
-const sequelize_1 = require("sequelize");
 const { Op } = require("sequelize");
 const helper_1 = require("../helpers/helper");
 const loan_1 = require("../models/loan");
 const loanTransaction_1 = require("../models/loanTransaction");
+const respHandler_1 = require("../utils/respHandler");
+const logger_1 = __importDefault(require("../utils/logger"));
 const cloudinary = require("cloudinary").v2;
 class LoanTakerController {
     constructor() { }
@@ -31,329 +43,333 @@ class LoanTakerController {
     }
     list(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
-            let qp = req.query;
-            let perPage = Number(qp.perPage) > 0 ? Number(qp.perPage) : 10;
-            let pageNo = Number(qp.page) > 0 ? Number(qp.page) - 1 : 0;
-            let order = [];
-            if (req.query.orderBy && req.query.order) {
-                order.push([req.query.orderBy, req.query.order]);
+            try {
+                const { limit, offset, orderBy, order, name, status, cnic, phoneNumber } = req.query;
+                const where = {};
+                if (name)
+                    where["name"] = { [Op.like]: `%${name}%` };
+                if (status)
+                    where["status"] = { [Op.eq]: status };
+                if (cnic)
+                    where["cnic"] = { [Op.eq]: cnic };
+                if (phoneNumber)
+                    where["phoneNumber"] = { [Op.eq]: phoneNumber };
+                const orderQuery = orderBy && order ? [[orderBy, order]] : [];
+                const data = yield loanTaker_1.LoanTaker.findAndCountAll({
+                    where,
+                    order: orderQuery,
+                    distinct: true,
+                    limit: Number(limit),
+                    offset: Number(offset),
+                });
+                logger_1.default.info(`Fetched loan takers successfully. Total records: ${data.count}`);
+                return respHandler_1.ResponseHandler.success(res, "Loan takers fetched successfully", (0, helper_1.paging)(data, Number(offset), Number(limit)));
             }
-            const where = {};
-            if (qp.keyword) {
-                where["name"] = { [Op.like]: "%" + qp.keyword + "%" };
-            }
-            if (qp.status && qp.status != "" && qp.status != null) {
-                where["status"] = {
-                    [Op.eq]: qp.status,
-                };
-            }
-            if (qp.cnic && qp.cnic != "" && qp.cnic != null) {
-                where["cnic"] = {
-                    [Op.eq]: qp.cnic,
-                };
-            }
-            if (qp.phone_number && qp.phone_number != "" && qp.phone_number != null) {
-                where["phone_number"] = {
-                    [Op.eq]: qp.phone_number,
-                };
-            }
-            let pagination = {};
-            if ((qp === null || qp === void 0 ? void 0 : qp.perPage) && (qp === null || qp === void 0 ? void 0 : qp.page)) {
-                pagination = {
-                    offset: perPage * pageNo,
-                    limit: perPage,
-                };
-            }
-            const data = yield loanTaker_1.LoanTaker.findAndCountAll(Object.assign({ where,
-                order, distinct: true }, pagination)).catch((e) => {
-                console.log(e);
-            });
-            if (qp.hasOwnProperty("page")) {
-                return res.Success("list", (0, helper_1.paging)(data, pageNo, perPage));
-            }
-            else {
-                return res.Success("list", data);
+            catch (error) {
+                logger_1.default.error("Error fetching loan takers", { error });
+                return respHandler_1.ResponseHandler.error(res, "Error fetching loan takers", 500, error);
             }
         });
     }
-    // fetch loan list by loan taker id
+    loanTakers(req, res) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const { limit, offset, name } = req.query;
+                const where = {};
+                if (name)
+                    where["name"] = { [Op.like]: `%${name}%` };
+                const data = yield loanTaker_1.LoanTaker.findAndCountAll({
+                    where
+                });
+                logger_1.default.info(`Fetched loan takers successfully. Total records: ${data.count}`);
+                return respHandler_1.ResponseHandler.success(res, "Loan takers fetched successfully", (0, helper_1.paging)(data, Number(offset), Number(limit)));
+            }
+            catch (error) {
+                logger_1.default.error("Error fetching loan takers", { error });
+                return respHandler_1.ResponseHandler.error(res, "Error fetching loan takers", 500, error);
+            }
+        });
+    }
+    // Fetch loan list by loan taker ID
     loanList(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
-            const schema = joi_1.default.object().keys({
-                id: joi_1.default.number().required(),
-            });
-            const { error, value } = schema.validate(req.body);
-            if (error instanceof sequelize_1.ValidationError) {
-                res.Error(error.details[0].message);
-                return;
+            try {
+                // Validate request body using Joi
+                const schema = joi_1.default.object({
+                    loanTakerId: joi_1.default.number().required(),
+                    amount: joi_1.default.optional(),
+                    date: joi_1.default.optional(),
+                    billNo: joi_1.default.optional(),
+                    loanType: joi_1.default.optional(),
+                    status: joi_1.default.optional(),
+                    limit: joi_1.default.optional(),
+                    offset: joi_1.default.optional(),
+                });
+                const { error, value } = schema.validate(Object.assign(Object.assign({}, req.body), req.query));
+                if (error) {
+                    logger_1.default.warn(`Validation error: ${error.details[0].message}`);
+                    return respHandler_1.ResponseHandler.error(res, error.details[0].message, 400);
+                }
+                const { limit, offset, orderBy, order, loanTakerId, amount, status, date, billNo, loanType } = req.query;
+                const where = {};
+                if (amount)
+                    where["amount"] = { [Op.like]: `%${amount}%` };
+                if (status)
+                    where["status"] = { [Op.eq]: status };
+                if (date)
+                    where["date"] = { [Op.eq]: date };
+                if (billNo)
+                    where["billNo"] = { [Op.eq]: billNo };
+                if (loanType)
+                    where["loanType"] = { [Op.eq]: loanType };
+                if (loanTakerId)
+                    where["loanTakerId"] = loanTakerId;
+                const orderQuery = orderBy && order ? [[orderBy, order]] : [];
+                const data = yield loan_1.Loan.findAndCountAll({
+                    where,
+                    order: orderQuery,
+                    distinct: true,
+                    limit: Number(limit),
+                    offset: Number(offset),
+                });
+                logger_1.default.info(`Fetched loan list for loan taker ID: ${value.id}, Total records: ${data.count}`);
+                return respHandler_1.ResponseHandler.success(res, "Loan list fetched successfully", (0, helper_1.paging)(data, Number(offset), Number(limit)));
             }
-            let qp = req.query;
-            let perPage = Number(qp.perPage) > 0 ? Number(qp.perPage) : 10;
-            let pageNo = Number(qp.page) > 0 ? Number(qp.page) - 1 : 0;
-            let order = [];
-            if (req.query.orderBy && req.query.order) {
-                order.push([req.query.orderBy, req.query.order]);
-            }
-            const where = {};
-            where["loan_taker_id"] = {
-                [Op.eq]: req.body.id,
-            };
-            // if (qp.keyword) {
-            //   where["name"] = { [Op.like]: "%" + qp.keyword + "%" };
-            // }
-            // if (qp.status && qp.status != "" && qp.status != null) {
-            //   where["status"] = {
-            //     [Op.eq]: qp.status,
-            //   };
-            // }
-            // if(qp.cnic && qp.cnic != "" && qp.cnic!= null) {
-            //    where["cnic"] = {
-            //     [Op.eq]: qp.cnic,
-            //    };
-            // }
-            // if (qp.phone_number && qp.phone_number != "" && qp.phone_number != null) {
-            //   where["phone_number"] = {
-            //     [Op.eq]: qp.phone_number,
-            //   };
-            // }
-            let pagination = {};
-            if ((qp === null || qp === void 0 ? void 0 : qp.perPage) && (qp === null || qp === void 0 ? void 0 : qp.page)) {
-                pagination = {
-                    offset: perPage * pageNo,
-                    limit: perPage,
-                };
-            }
-            const data = yield loan_1.Loan.findAndCountAll(Object.assign({ where,
-                order, distinct: true }, pagination)).catch((e) => {
-                console.log(e);
-            });
-            if (qp.hasOwnProperty("page")) {
-                return res.Success("list", (0, helper_1.paging)(data, pageNo, perPage));
-            }
-            else {
-                return res.Success("list", data);
+            catch (error) {
+                logger_1.default.error("Error fetching loan list", { error });
+                return respHandler_1.ResponseHandler.error(res, "Error fetching loan list", 500, error);
             }
         });
     }
-    // fetch loan list by loan taker id
+    // Fetch transaction list by loan taker ID
     transactionList(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
-            let qp = req.query;
-            let perPage = Number(qp.perPage) > 0 ? Number(qp.perPage) : 10;
-            let pageNo = Number(qp.page) > 0 ? Number(qp.page) - 1 : 0;
-            let order = [];
-            if (req.query.orderBy && req.query.order) {
-                order.push([req.query.orderBy, req.query.order]);
+            try {
+                // Validate loanTakerId in query parameters
+                const schema = joi_1.default.object({
+                    id: joi_1.default.number().required(),
+                    orderBy: joi_1.default.string().optional(),
+                    order: joi_1.default.string().valid("ASC", "DESC").optional(),
+                    amount: joi_1.default.number().optional(),
+                    paymentsource: joi_1.default.string().optional(),
+                    date: joi_1.default.date().optional(),
+                });
+                const { error, value } = schema.validate(req.query);
+                if (error) {
+                    logger_1.default.warn(`Validation error: ${error.details[0].message}`);
+                    return respHandler_1.ResponseHandler.error(res, error.details[0].message, 400);
+                }
+                const { id, limit, offset, orderBy, order, amount, paymentsource, date } = value;
+                const where = { loanTakerId: { [Op.eq]: id } };
+                if (amount)
+                    where["amount"] = { [Op.eq]: amount };
+                if (paymentsource)
+                    where["paymentSourceId"] = { [Op.eq]: paymentsource };
+                if (date)
+                    where["date"] = { [Op.eq]: date };
+                const orderQuery = orderBy && order ? [[orderBy, order]] : [];
+                const data = yield loanTransaction_1.LoanTransaction.findAndCountAll({
+                    where,
+                    order: orderQuery,
+                    distinct: true,
+                    limit,
+                    offset,
+                });
+                logger_1.default.info(`Fetched transactions for loan taker ID: ${id}, Total records: ${data.count}`);
+                return respHandler_1.ResponseHandler.success(res, "Transaction list fetched successfully", (0, helper_1.paging)(data, Number(offset), limit));
             }
-            const where = {};
-            where["loan_taker_id"] = {
-                [Op.eq]: qp.id,
-            };
-            // if (qp.keyword) {
-            //   where["name"] = { [Op.like]: "%" + qp.keyword + "%" };
-            // }
-            if (qp.transaction_amount &&
-                qp.transaction_amount != "" &&
-                qp.transaction_amount != null) {
-                where["transaction_amount"] = {
-                    [Op.eq]: qp.transaction_amount,
-                };
-            }
-            if (qp.paymentsource &&
-                qp.paymentsource != "" &&
-                qp.paymentsource != null) {
-                where["payment_source"] = {
-                    [Op.eq]: qp.paymentsource,
-                };
-            }
-            if (qp.transaction_date &&
-                qp.transaction_date != "" &&
-                qp.transaction_date != null) {
-                where["transaction_date"] = {
-                    [Op.eq]: qp.transaction_date,
-                };
-            }
-            let pagination = {};
-            if ((qp === null || qp === void 0 ? void 0 : qp.perPage) && (qp === null || qp === void 0 ? void 0 : qp.page)) {
-                pagination = {
-                    offset: perPage * pageNo,
-                    limit: perPage,
-                };
-            }
-            const data = yield loanTransaction_1.LoanTransaction.findAndCountAll(Object.assign({ where,
-                order, distinct: true }, pagination)).catch((e) => {
-                console.log(e);
-            });
-            if (qp.hasOwnProperty("page")) {
-                return res.Success("list", (0, helper_1.paging)(data, pageNo, perPage));
-            }
-            else {
-                return res.Success("list", data);
+            catch (error) {
+                logger_1.default.error("Error fetching transaction list", { error });
+                return respHandler_1.ResponseHandler.error(res, "Error fetching transaction list", 500, error);
             }
         });
     }
     save(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
-            const schema = joi_1.default.object().keys({
-                name: joi_1.default.string().required(),
-                phone_number: joi_1.default.string().required(),
-                cnic: joi_1.default.string().required(),
-                description: joi_1.default.string().required(),
-                status: joi_1.default.required(),
-            });
-            const { error, value } = schema.validate(req.body);
-            if (error instanceof sequelize_1.ValidationError) {
-                return res.Error(error.details[0].message);
-            }
-            const catData = {
-                name: req.body.name,
-                phone_number: req.body.phone_number,
-                cnic: req.body.cnic,
-                description: req.body.description,
-                status: req.body.status,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-            };
-            // const transaction = await sequelize.transaction();
             try {
-                const instance = yield loanTaker_1.LoanTaker.create(catData);
-                //   await transaction.commit();
-                return res.Success("Added Successfully", instance);
+                // Validate request body
+                const schema = joi_1.default.object({
+                    name: joi_1.default.string().required(),
+                    phoneNumber: joi_1.default.string().required(),
+                    email: joi_1.default.string().email().required(),
+                    cnic: joi_1.default.string().required(),
+                    description: joi_1.default.optional(),
+                    status: joi_1.default.optional(),
+                });
+                const { error, value } = schema.validate(req.body);
+                if (error) {
+                    logger_1.default.warn(`Validation error: ${error.details[0].message}`);
+                    return respHandler_1.ResponseHandler.error(res, error.details[0].message, 400);
+                }
+                const loanTakerData = Object.assign(Object.assign({}, value), { createdAt: new Date(), updatedAt: new Date() });
+                // Save data
+                const instance = yield loanTaker_1.LoanTaker.create(loanTakerData);
+                logger_1.default.info(`LoanTaker created successfully with ID: ${instance.id}`);
+                return respHandler_1.ResponseHandler.success(res, "Added Successfully", instance);
             }
-            catch (e) {
-                //   await transaction.rollback();
-                console.log("Error", e);
-                return res.Error("Error in adding record", e);
-                global.log.error(e);
-                res.Error("error in creating LoanTaker");
+            catch (error) {
+                logger_1.default.error("Error in adding LoanTaker", { error });
+                return respHandler_1.ResponseHandler.error(res, "Error in adding record", 500, error);
             }
         });
     }
     update(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
-            const schema = joi_1.default.object().keys({
-                id: joi_1.default.number().required(),
-                name: joi_1.default.string().required(),
-                description: joi_1.default.string().required(),
-                phone_number: joi_1.default.string().required(),
-                cinc: joi_1.default.string().required(),
-                status: joi_1.default.required(),
-            });
-            const { error, value } = schema.validate(req.body);
-            if (error instanceof sequelize_1.ValidationError) {
-                res.Error(error.details[0].message);
-                return;
-            }
-            const LoanTakerr = yield loanTaker_1.LoanTaker.findByPk(req.body.id);
-            if (!LoanTakerr) {
-                res.Error("No Record Found");
-                return;
-            }
-            const LoanTakerData = {
-                name: req.body.name,
-                phone_number: req.body.phone_number,
-                description: req.body.description,
-                cnic: req.body.cnic,
-                status: req.body.status,
-                updatedAt: new Date(),
-            };
             try {
-                const instance = yield loanTaker_1.LoanTaker.update(LoanTakerData, {
-                    where: { id: req.body.id },
+                // Validate request body
+                const schema = joi_1.default.object({
+                    id: joi_1.default.number().required(),
+                    name: joi_1.default.string().required(),
+                    description: joi_1.default.string().required(),
+                    phoneNumber: joi_1.default.string().required(),
+                    email: joi_1.default.string().email().required(),
+                    cnic: joi_1.default.string().required(),
+                    status: joi_1.default.optional(),
                 });
-                if (!instance) {
-                    return res.Error("Error in updating record please fill correct data");
+                const { error, value } = schema.validate(req.body);
+                if (error) {
+                    logger_1.default.warn(`Validation error: ${error.details[0].message}`);
+                    return respHandler_1.ResponseHandler.error(res, error.details[0].message, 400);
                 }
-                const res_data = yield loanTaker_1.LoanTaker.findByPk(req.body.id);
-                return res.Success("updated successfully", res_data);
+                const { id } = value, updateData = __rest(value, ["id"]);
+                updateData.updatedAt = new Date();
+                // Check if record exists
+                const existingRecord = yield loanTaker_1.LoanTaker.findByPk(id);
+                if (!existingRecord) {
+                    logger_1.default.warn(`LoanTaker with ID ${id} not found`);
+                    return respHandler_1.ResponseHandler.error(res, "No record found", 404);
+                }
+                // Update record
+                yield loanTaker_1.LoanTaker.update(updateData, { where: { id } });
+                const updatedRecord = yield loanTaker_1.LoanTaker.findByPk(id);
+                logger_1.default.info(`LoanTaker with ID ${id} updated successfully`);
+                return respHandler_1.ResponseHandler.success(res, "Updated successfully", updatedRecord);
             }
-            catch (e) {
-                return res.Error("Error in updating record please fill correct data");
-                console.log("Error in updating LoanTaker", e);
-                global.log.error(e);
+            catch (error) {
+                logger_1.default.error("Error updating LoanTaker", { error });
+                return respHandler_1.ResponseHandler.error(res, "Error updating record", 500, error);
             }
         });
     }
     updateStatus(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
-            // (global as any).log.info("Update Status");
-            const schema = joi_1.default.object().keys({
-                status: joi_1.default.string().required(),
-                id: joi_1.default.number().required(),
-            });
-            const { error, value } = schema.validate(req.body);
-            if (error instanceof sequelize_1.ValidationError) {
-                res.Error(error.details[0].message);
-                return;
+            try {
+                // Validate request body
+                const schema = joi_1.default.object({
+                    status: joi_1.default.string().required(),
+                    id: joi_1.default.number().required(),
+                });
+                const { error, value } = schema.validate(req.body);
+                if (error) {
+                    logger_1.default.warn(`Validation error: ${error.details[0].message}`);
+                    return respHandler_1.ResponseHandler.error(res, error.details[0].message, 400);
+                }
+                const { id, status } = value;
+                // Check if record exists
+                const existingRecord = yield loanTaker_1.LoanTaker.findByPk(id);
+                if (!existingRecord) {
+                    logger_1.default.warn(`LoanTaker with ID ${id} not found`);
+                    return respHandler_1.ResponseHandler.error(res, "Record not found", 404);
+                }
+                // Update status
+                yield loanTaker_1.LoanTaker.update({ status }, { where: { id } });
+                logger_1.default.info(`LoanTaker ID ${id} status updated to ${status}`);
+                return respHandler_1.ResponseHandler.success(res, "Status updated successfully");
             }
-            const data = yield loanTaker_1.LoanTaker.update({ status: req.body.status }, { where: { id: req.body.id } });
-            if (data == null) {
-                res.Error("record not Found");
-                return;
+            catch (error) {
+                logger_1.default.error("Error updating status", { error });
+                return respHandler_1.ResponseHandler.error(res, "Error updating status", 500, error);
             }
-            return res.Success("status updated successfully");
         });
     }
     detail(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
-            const schema = joi_1.default.object().keys({
-                id: joi_1.default.number().required(),
-            });
-            const { error, value } = schema.validate(req.body);
-            if (error instanceof sequelize_1.ValidationError) {
-                res.Error(error.details[0].message);
-                return;
+            try {
+                // Validate request body
+                const schema = joi_1.default.object({
+                    id: joi_1.default.number().required(),
+                });
+                const { error, value } = schema.validate(req.body);
+                if (error) {
+                    logger_1.default.warn(`Validation error: ${error.details[0].message}`);
+                    return respHandler_1.ResponseHandler.error(res, error.details[0].message, 400);
+                }
+                const { id } = value;
+                // Fetch record
+                const result = yield loanTaker_1.LoanTaker.findOne({ where: { id } });
+                if (!result) {
+                    logger_1.default.warn(`LoanTaker with ID ${id} not found`);
+                    return respHandler_1.ResponseHandler.error(res, "Data not found", 404);
+                }
+                logger_1.default.info(`Fetched details for LoanTaker ID ${id}`);
+                return respHandler_1.ResponseHandler.success(res, "Detail", result);
             }
-            const result = yield loanTaker_1.LoanTaker.findOne({
-                where: { id: Number(req.body.id) },
-            });
-            // console.log(review);
-            if (result === null) {
-                res.Error("data not found");
-                return;
+            catch (error) {
+                logger_1.default.error("Error fetching detail", { error });
+                return respHandler_1.ResponseHandler.error(res, "Error fetching details", 500, error);
             }
-            res.Success("Detail", result);
         });
     }
     loanDetail(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
-            const schema = joi_1.default.object().keys({
-                id: joi_1.default.number().required(),
-            });
-            const { error, value } = schema.validate(req.body);
-            if (error instanceof sequelize_1.ValidationError) {
-                res.Error(error.details[0].message);
-                return;
+            try {
+                // Validate request body
+                const schema = joi_1.default.object({
+                    id: joi_1.default.number().required(),
+                });
+                const { error, value } = schema.validate(req.body);
+                if (error) {
+                    logger_1.default.warn(`Validation error: ${error.details[0].message}`);
+                    return respHandler_1.ResponseHandler.error(res, error.details[0].message, 400);
+                }
+                const { id } = value;
+                // Fetch loan details
+                const result = yield loan_1.Loan.findOne({ where: { id } });
+                if (!result) {
+                    logger_1.default.warn(`Loan with ID ${id} not found`);
+                    return respHandler_1.ResponseHandler.error(res, "Data not found", 404);
+                }
+                logger_1.default.info(`Fetched details for Loan ID ${id}`);
+                return respHandler_1.ResponseHandler.success(res, "Loan Detail", result);
             }
-            const result = yield loan_1.Loan.findOne({
-                where: { id: Number(req.body.id) },
-            });
-            // console.log(review);
-            if (result === null) {
-                res.Error("data not found");
-                return;
+            catch (error) {
+                logger_1.default.error("Error fetching loan details", { error });
+                return respHandler_1.ResponseHandler.error(res, "Error fetching loan details", 500, error);
             }
-            res.Success("Loan Detail", result);
         });
     }
     // del user
     del(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                let data = yield loanTaker_1.LoanTaker.destroy({
-                    where: {
-                        id: Number(req.body.id),
-                    },
+                // Validate request body
+                const schema = joi_1.default.object({
+                    id: joi_1.default.number().required(),
                 });
+                const { error, value } = schema.validate(req.body);
+                if (error) {
+                    logger_1.default.warn(`Validation error: ${error.details[0].message}`);
+                    return respHandler_1.ResponseHandler.error(res, error.details[0].message, 400);
+                }
+                const { id } = value;
+                // Check if record exists
+                const existingRecord = yield loanTaker_1.LoanTaker.findByPk(id);
+                if (!existingRecord) {
+                    logger_1.default.warn(`LoanTaker with ID ${id} not found`);
+                    return respHandler_1.ResponseHandler.error(res, "Record not found", 404);
+                }
+                // Delete record
+                yield loanTaker_1.LoanTaker.destroy({ where: { id } });
+                logger_1.default.info(`LoanTaker ID ${id} deleted successfully`);
+                return respHandler_1.ResponseHandler.success(res, "Successfully deleted");
             }
-            catch (err) {
-                console.log(err);
-                res.Error("error in deleting LoanTaker");
+            catch (error) {
+                logger_1.default.error("Error deleting LoanTaker", { error });
+                return respHandler_1.ResponseHandler.error(res, "Error deleting LoanTaker", 500, error);
             }
-            res.Success("Successfullt deleted");
         });
     }
 }
 LoanTakerController.instance = null;
 exports.LoanTakerController = LoanTakerController;
-//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiTG9hblRha2VyQ29udHJvbGxlci5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NyYy9jb250cm9sbGVycy9Mb2FuVGFrZXJDb250cm9sbGVyLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7OztBQUNBLG1EQUFnRDtBQUNoRCw4Q0FBc0I7QUFDdEIseUNBQTRDO0FBQzVDLE1BQU0sRUFBRSxFQUFFLEVBQUUsR0FBRyxPQUFPLENBQUMsV0FBVyxDQUFDLENBQUM7QUFDcEMsOENBQXFEO0FBQ3JELHlDQUFzQztBQUN0QywrREFBNEQ7QUFFNUQsTUFBTSxVQUFVLEdBQUcsT0FBTyxDQUFDLFlBQVksQ0FBQyxDQUFDLEVBQUUsQ0FBQztBQUM1QyxNQUFhLG1CQUFtQjtJQUc5QixnQkFBdUIsQ0FBQztJQUV4QixNQUFNLENBQUMsSUFBSTtRQUNULElBQUksSUFBSSxDQUFDLFFBQVEsSUFBSSxJQUFJLEVBQUU7WUFDekIsSUFBSSxDQUFDLFFBQVEsR0FBRyxJQUFJLG1CQUFtQixFQUFFLENBQUM7U0FDM0M7UUFFRCxPQUFPLElBQUksQ0FBQyxRQUFRLENBQUM7SUFDdkIsQ0FBQztJQUVLLElBQUksQ0FBQyxHQUFvQixFQUFFLEdBQXFCOztZQUNwRCxJQUFJLEVBQUUsR0FBRyxHQUFHLENBQUMsS0FBSyxDQUFDO1lBQ25CLElBQUksT0FBTyxHQUFRLE1BQU0sQ0FBQyxFQUFFLENBQUMsT0FBTyxDQUFDLEdBQUcsQ0FBQyxDQUFDLENBQUMsQ0FBQyxNQUFNLENBQUMsRUFBRSxDQUFDLE9BQU8sQ0FBQyxDQUFDLENBQUMsQ0FBQyxFQUFFLENBQUM7WUFDcEUsSUFBSSxNQUFNLEdBQVEsTUFBTSxDQUFDLEVBQUUsQ0FBQyxJQUFJLENBQUMsR0FBRyxDQUFDLENBQUMsQ0FBQyxDQUFDLE1BQU0sQ0FBQyxFQUFFLENBQUMsSUFBSSxDQUFDLEdBQUcsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUM7WUFDaEUsSUFBSSxL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
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiTG9hblRha2VyQ29udHJvbGxlci5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NyYy9jb250cm9sbGVycy9Mb2FuVGFrZXJDb250cm9sbGVyLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7O0FBQ0EsbURBQWdEO0FBQ2hELDhDQUFzQjtBQUV0QixNQUFNLEVBQUUsRUFBRSxFQUFFLEdBQUcsT0FBTyxDQUFDLFdBQVcsQ0FBQyxDQUFDO0FBQ3BDLDhDQUFxRDtBQUNyRCx5Q0FBc0M7QUFDdEMsK0RBQTREO0FBQzVELHNEQUF1RDtBQUN2RCw2REFBcUM7QUFFckMsTUFBTSxVQUFVLEdBQUcsT0FBTyxDQUFDLFlBQVksQ0FBQyxDQUFDLEVBQUUsQ0FBQztBQUM1QyxNQUFhLG1CQUFtQjtJQUc5QixnQkFBd0IsQ0FBQztJQUV6QixNQUFNLENBQUMsSUFBSTtRQUNULElBQUksSUFBSSxDQUFDLFFBQVEsSUFBSSxJQUFJLEVBQUU7WUFDekIsSUFBSSxDQUFDLFFBQVEsR0FBRyxJQUFJLG1CQUFtQixFQUFFLENBQUM7U0FDM0M7UUFFRCxPQUFPLElBQUksQ0FBQyxRQUFRLENBQUM7SUFDdkIsQ0FBQztJQUVLLElBQUksQ0FBQyxHQUFvQixFQUFFLEdBQXFCOztZQUNwRCxJQUFJO2dCQUNGLE1BQU0sRUFBRSxLQUFLLEVBQUUsTUFBTSxFQUFFLE9BQU8sRUFBRSxLQUFLLEVBQUUsSUFBSSxFQUFFLE1BQU0sRUFBRSxJQUFJLEVBQUUsV0FBVyxFQUFFLEdBQUcsR0FBRyxDQUFDLEtBQUssQ0FBQztnQkFFckYsTUFBTSxLQUFLLEdBQVEsRUFBRSxDQUFDO2dCQUV0QixJQUFJLElBQUk7b0JBQUUsS0FBSyxDQUFDLE1BQU0sQ0FBQyxHQUFHLEVBQUUsQ0FBQyxFQUFFLENBQUMsSUFBSSxDQUFDLEVBQUUsSUFBSSxJQUFJLEdBQUcsRUFBRSxDQUFDO2dCQUNyRCxJQUFJLE1BQU07b0JBQUUsS0FBSyxD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

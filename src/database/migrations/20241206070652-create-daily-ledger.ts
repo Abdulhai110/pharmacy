@@ -13,6 +13,7 @@ module.exports = {
       ledger_date: {
         type: DataTypes.DATE,
         allowNull: false,
+        defaultValue: DataTypes.NOW
       },
       rs_ten: {
         type: DataTypes.INTEGER,
@@ -74,15 +75,13 @@ module.exports = {
       },
       // Add other fields as needed
       createdAt: {
-        type: "TIMESTAMP",
-        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
+        type: Sequelize.DATE,
+        defaultValue: DataTypes.NOW,
         allowNull: false,
       },
       updatedAt: {
-        type: "TIMESTAMP",
-        defaultValue: Sequelize.literal(
-          "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-        ),
+        type: Sequelize.DATE,
+        defaultValue: DataTypes.NOW,
         allowNull: false,
       },
     });

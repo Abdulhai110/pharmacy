@@ -11,11 +11,13 @@ import { paging, enumKeys } from "../helpers/helper";
 import { LoanTaker } from "../models/loanTaker";
 import { LoanTransaction } from "../models/loanTransaction";
 import { sequelize } from "../config/connection";
-
+import { ResponseHandler } from "../utils/respHandler";
+import logger from "../utils/logger";
+import { Account } from "../models/BankAccounts";
 export class DistributorCreditController {
   private static instance: DistributorCreditController | null = null;
 
-  private constructor() {}
+  private constructor() { }
 
   static init(): DistributorCreditController {
     if (this.instance == null) {
@@ -26,182 +28,155 @@ export class DistributorCreditController {
   }
 
   async list(req: express.Request, res: express.Response) {
-    let qp = req.query;
-    let perPage: any = Number(qp.perPage) > 0 ? Number(qp.perPage) : 10;
-    let pageNo: any = Number(qp.page) > 0 ? Number(qp.page) - 1 : 0;
-    let order: Array<any> = [];
-    if (req.query.orderBy && req.query.order) {
-      order.push([req.query.orderBy as string, req.query.order as string]);
-    }
+    try {
+      const { perPage, page, orderBy, order, distributorId, amount, paymentSourceId, date } = req.query;
 
-    const where: any = {};
-    where["distributor_id"] = req.query.id;
-    if (
-      qp.credit_amount &&
-      qp.credit_amount != "" &&
-      qp.credit_amount != null
-    ) {
-      where["credit_amount"] = {
-        [Op.eq]: qp.credit_amount,
-      };
-    }
+      // Pagination Setup
+      const limit = Number(perPage) > 0 ? Number(perPage) : 10;
+      const pageNo = Number(page) > 0 ? Number(page) - 1 : 0;
+      const offset = limit * pageNo;
 
-    if (
-      qp.payment_source &&
-      qp.payment_source != "" &&
-      qp.payment_source != null
-    ) {
-      where["payment_source"] = {
-        [Op.eq]: qp.payment_source,
-      };
-    }
+      // Sorting Setup
+      const sortingOrder: Array<[string, string]> = orderBy && order ? [[orderBy as string, order as string]] : [];
 
-    if (qp.credit_date && qp.credit_date != "" && qp.credit_date != null) {
-      where["credit_date"] = {
-        [Op.eq]: qp.credit_date,
-      };
-    }
-    if (qp.date && qp.date != "" && qp.date != null) {
-      where["date"] = {
-        [Op.eq]: qp.date,
-      };
-    }
+      // Filtering Setup
+      const where: Record<string, any> = {};
+      if (distributorId) where["distributorId"] = distributorId;
+      if (amount) where["amount"] = { [Op.eq]: amount };
+      if (paymentSourceId) where["paymentSourceId"] = { [Op.eq]: paymentSourceId };
+      if (date) where["date"] = { [Op.eq]: date };
+      if (date) where["date"] = { [Op.eq]: date };
 
-    let pagination = {};
+      // Fetch Data
+      console.log('filgtttters', where)
+      const data = await DistributorCredit.findAndCountAll({
+        where,
+        order: sortingOrder,
+        distinct: true,
+        offset,
+        limit,
+      });
 
-    if (qp?.perPage && qp?.page) {
-      pagination = {
-        offset: perPage * pageNo,
-        limit: perPage,
-      };
-    }
+      // Response Handling
+      const responseData = page ? paging(data, pageNo, limit) : data;
+      return ResponseHandler.success(res, "List fetched successfully", responseData);
 
-    const data = await DistributorCredit.findAndCountAll({
-      where,
-      order,
-      distinct: true,
-      ...pagination,
-    }).catch((e) => {
-      console.log(e);
-    });
-
-    if (qp.hasOwnProperty("page")) {
-      return res.Success("list", paging(data, pageNo, perPage));
-    } else {
-      return res.Success("list", data);
+    } catch (error: any) {
+      logger.error(`Error fetching list: ${error.message}`, { error });
+      return ResponseHandler.error(res, "Error fetching list. Please try again later.", 500);
     }
   }
 
+
   public async save(req: express.Request, res: express.Response) {
-    const schema = Joi.object().keys({
-      distributor_id: Joi.number().required(),
+    // Define validation schema
+    const schema = Joi.object({
+      distributorId: Joi.number().required(),
       description: Joi.string().optional(),
-      credit_date: Joi.optional(),
-      credit_amount: Joi.required(),
-      payment_source: Joi.required(),
-      status: Joi.required(),
+      date: Joi.date().optional(),
+      amount: Joi.number().required().min(1),
+      paymentSourceId: Joi.string().required(),
+      status: Joi.optional(),
     });
 
+    // Validate request body
     const { error, value } = schema.validate(req.body);
     if (error instanceof ValidationError) {
-      return res.Error(error.details[0].message);
+      return ResponseHandler.error(res, error.details[0].message, 400);
     }
 
-    const catData = {
-      distributor_id: req.body.distributor_id,
-      description: req.body.description ?? null,
-      credit_amount: req.body.credit_amount ?? 0,
-      credit_date: req.body.credit_date ?? "",
-      payment_source: req.body.payment_source ?? "",
-      status: req.body.status,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    const distributor_id = Number(req.body.distributor_id);
-    const creditAmount = req.body.credit_amount;
-    const credit = await sequelize.transaction();
+    const transaction = await sequelize.transaction();
     try {
-      const instance = await DistributorCredit.create(catData);
-      const loanTaker = await Distributor.findOne({
-        where: { id: distributor_id },
-      });
 
-      if (loanTaker) {
-        let paidLoanAmount = loanTaker.paid_amount;
-        let remainingLoanAmount = loanTaker.remaining_amount;
-        paidLoanAmount = Number(paidLoanAmount) + Number(creditAmount);
-        // Calculate the remaining loan amount after the update
-        remainingLoanAmount =
-          Number(remainingLoanAmount) - Number(creditAmount);
+      if (value.paymentSourceId && value.paymentSourceId > 0) {
+        const account = await Account.findByPk(Number(value.paymentSourceId), { transaction: transaction });
 
-        // Update the loan amount in the database
-        await Distributor.update(
-          {
-            paid_amount: paidLoanAmount,
-            remaining_amount: remainingLoanAmount,
-          },
-          { where: { id: distributor_id } }
-        );
-      } else {
-        return res.Error("Pass Correct Loan Taker id");
+        if (!account) {
+          await transaction.rollback();
+          return ResponseHandler.error(res, "Invalid account/payment source", 404);
+        }
+        account.balance = Number(account.balance) + Number(value.amount);
+        await account.save({ transaction: transaction });
       }
-      await credit.commit();
-      return res.Success("Added Successfully", instance);
-    } catch (e: any) {
-      console.log("Error", e);
-      await credit.rollback();
-      return res.Error("Error in adding record");
-      //   (global as any).log.error(e);
+      const instance = await DistributorCredit.create(value, { transaction });
+
+      const loanTaker = await Distributor.findOne({ where: { id: value.distributorId }, transaction });
+
+      if (!loanTaker) {
+        await transaction.rollback();
+        return ResponseHandler.error(res, "Invalid distributor ID", 400);
+      }
+      const updatedLoanData = {
+        paidAmount: Number(loanTaker.paidAmount) + Number(value.amount),
+        remainingAmount: Number(loanTaker.remainingAmount) - Number(value.amount),
+      };
+
+      await Distributor.update(updatedLoanData, { where: { id: value.distributorId }, transaction });
+
+      await transaction.commit();
+      return ResponseHandler.success(res, "Added successfully", instance, 201);
+
+    } catch (error: any) {
+      await transaction.rollback();
+      logger.error(`Error adding credit: ${error.message}`, { error });
+      return ResponseHandler.error(res, "Error adding record. Please try again.", 500);
     }
   }
 
   public async update(req: express.Request, res: express.Response) {
-    const schema = Joi.object().keys({
+    // Define validation schema
+    const schema = Joi.object({
       id: Joi.number().required(),
-      distributor_id: Joi.number().required(),
+      distributorId: Joi.number().required(),
       description: Joi.string().optional(),
-      credit_date: Joi.optional(),
-      credit_amount: Joi.optional(),
-      payment_source: Joi.optional(),
-      status: Joi.optional(),
+      date: Joi.date().optional(),
+      amount: Joi.number().optional(),
+      paymentSourceId: Joi.string().optional(),
+      status: Joi.string().optional(),
     });
 
+    // Validate request body
     const { error, value } = schema.validate(req.body);
     if (error instanceof ValidationError) {
-      res.Error(error.details[0].message);
-      return;
+      return ResponseHandler.error(res, error.details[0].message, 400);
     }
 
-    const Loanr: any = await DistributorCredit.findByPk(req.body.id);
+    const { id, distributorId, description, date, amount, paymentSourceId, status } = req.body;
 
-    if (!Loanr) {
-      res.Error("No Record Found");
-      return;
-    }
-
-    const LoanData = {
-      distributor_id: req.body.distributor_id,
-      credit_amount: req.body.credit_amount ?? "",
-      credit_date: req.body.credit_date ?? "",
-      payment_source: req.body.payment_source ?? "",
-      status: req.body.status,
-      updatedAt: new Date(),
-    };
     try {
-      const instance = await DistributorCredit.update(LoanData, {
-        where: { id: req.body.id },
-      });
-      if (!instance) {
-        return res.Error("Error in updating record please fill correct data");
+      // Find record
+      const creditRecord = await DistributorCredit.findByPk(id);
+      if (!creditRecord) {
+        return ResponseHandler.error(res, "No record found", 404);
       }
-      const res_data = await DistributorCredit.findByPk(req.body.id);
-      return res.Success("updated successfully", res_data);
-    } catch (e: any) {
-      return res.Error("Error in updating record please fill correct data");
-      console.log("Error in updating Loan", e);
-      (global as any).log.error(e);
+
+      // Prepare updated data
+      const updatedData = {
+        distributorId,
+        description: description ?? creditRecord.description,
+        amount: amount ?? creditRecord.amount,
+        date: date ?? creditRecord.date,
+        paymentSourceId: paymentSourceId ?? creditRecord.paymentSourceId,
+        status: status ?? creditRecord.status,
+        updatedAt: new Date(),
+      };
+
+      // Update record
+      const [updateCount] = await DistributorCredit.update(updatedData, { where: { id } });
+      if (updateCount === 0) {
+        return ResponseHandler.error(res, "No changes made. Check your data.", 400);
+      }
+
+      // Fetch updated data
+      const updatedRecord = await DistributorCredit.findByPk(id);
+      return ResponseHandler.success(res, "Updated successfully", updatedRecord);
+
+    } catch (error: any) {
+      logger.error(`Error updating credit: ${error.message}`, { error });
+      return ResponseHandler.error(res, "Error updating record. Please try again.", 500);
     }
   }
+
 
   public async detail(req: express.Request, res: express.Response) {
     const schema = Joi.object().keys({

@@ -18,63 +18,49 @@ module.exports = {
         type: DataTypes.BIGINT.UNSIGNED,
         autoIncrement: false,
       },
-      closingDate: {
-        type: DataTypes.DATEONLY,
+      closing_date: {
+        type: DataTypes.DATE,
         allowNull: false,
+        defaultValue: DataTypes.NOW
       },
-      rsTen: {
+      ten: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
       },
-      description: {
-        type: DataTypes.STRING(100),
-      },
-      rsTwenty: {
+      twenty: {
         type: DataTypes.INTEGER,
         defaultValue: 0,
-        allowNull: false,
+        allowNull: true,
       },
-      rsFifty: {
+      fifty: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
       },
-      rsHundred: {
+      hundred: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
       },
-      rs5hundred: {
+      fiveHundred: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
       },
-      rsThousand: {
+      thousand: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
       },
-      rs5thousand: {
+      fiveThousand: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
       },
       coins: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
       },
-      rsTotal: {
+      physicalCashTotal: {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
-      jazzCash: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-      },
-      easyPasa: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-      },
-      bank: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-      },
-      accountsTotal: {
+      bankAmount: {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
@@ -83,9 +69,6 @@ module.exports = {
         allowNull: false,
       },
       yesterdaySale: {
-        type: DataTypes.INTEGER,
-      },
-      yesterdayTotalAmount: {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
@@ -97,16 +80,45 @@ module.exports = {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
+      distributorsDebit: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      distributorsCredit: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      loanTakersDebit: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      loanTakersCredit: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      expenses: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      dayTotal: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      dayClosingGap: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      description: {
+        type: DataTypes.STRING(100),
+      },
       createdAt: {
-        type: "TIMESTAMP",
-        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
+        type: Sequelize.DATE,
+        defaultValue: DataTypes.NOW,
         allowNull: false,
       },
       updatedAt: {
-        type: "TIMESTAMP",
-        defaultValue: Sequelize.literal(
-          "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-        ),
+        type: Sequelize.DATE,
+        defaultValue: DataTypes.NOW,
         allowNull: false,
       },
     });

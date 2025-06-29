@@ -15,12 +15,14 @@ export class DistributorCredit extends Model<
   InferCreationAttributes<DistributorCredit>
 > {
   id: number | null;
-  distributor_id: number;
+  distributorId: number;
   //   loan_id: number;
   description: string;
-  credit_date: Date;
-  credit_amount: number;
-  payment_source: PaymentSourceEnum;
+  date: Date;
+  amount: number;
+  gstAmount: number;
+  advTaxAmount: number;
+  paymentSourceId: number;
   status: StatusEnum;
   createdAt?: Date;
   updatedAt?: Date;
@@ -33,51 +35,49 @@ DistributorCredit.init(
       primaryKey: true,
       autoIncrement: true,
     },
-    distributor_id: {
+    distributorId: {
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
     },
-
-    credit_date: {
-      type: DataTypes.DATEONLY,
+    date: {
+      type: DataTypes.DATE,
       allowNull: false,
+      defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
     },
     description: {
       type: DataTypes.STRING(100),
     },
-    credit_amount: {
-      type: DataTypes.INTEGER,
+    amount: {
+      type: DataTypes.BIGINT,
       defaultValue: 0,
       allowNull: false,
     },
-
-    payment_source: {
-      type: DataTypes.ENUM(...enumKeys(PaymentSourceEnum)),
-      defaultValue: PaymentSourceEnum.CASH,
+    gstAmount: {
+      type: DataTypes.BIGINT,
+      defaultValue: 0,
+      allowNull: true,
+    },
+    advTaxAmount: {
+      type: DataTypes.BIGINT,
+      defaultValue: 0,
+      allowNull: true,
+    },
+    paymentSourceId: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: true,
     },
 
     status: {
       type: DataTypes.ENUM(...enumKeys(StatusEnum)),
       defaultValue: StatusEnum.Active,
     },
-    createdAt: {
-      type: "TIMESTAMP",
-      defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
-      allowNull: false,
-    },
-    updatedAt: {
-      type: "TIMESTAMP",
-      defaultValue: Sequelize.literal(
-        "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-      ),
-      allowNull: false,
-    },
+
   },
   {
     sequelize,
-    timestamps: false,
+    timestamps: true,
     tableName: "distributor-credits",
   }
 );
 
-// LoanTaker.belongsTo(Loan, { foreignKey: 'loan_taker_id' });
+// LoanTaker.belongsTo(Loan, { foreignKey: 'loanTakerId' });

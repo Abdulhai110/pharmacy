@@ -9,13 +9,14 @@ const { Op } = require("sequelize");
 import { paging, enumKeys } from "../helpers/helper";
 import { LoanTaker } from "../models/loanTaker";
 import { Distributor } from "../models/distributor";
-
+import { ResponseHandler } from "../utils/respHandler";
+import logger from "../utils/logger";
 const cloudinary = require("cloudinary").v2;
 
 export class DistributorDebitController {
   private static instance: DistributorDebitController | null = null;
 
-  private constructor() {}
+  private constructor() { }
 
   static init(): DistributorDebitController {
     if (this.instance == null) {
@@ -26,207 +27,161 @@ export class DistributorDebitController {
   }
 
   async list(req: express.Request, res: express.Response) {
-    let qp = req.query;
-    let perPage: any = Number(qp.perPage) > 0 ? Number(qp.perPage) : 10;
-    let pageNo: any = Number(qp.page) > 0 ? Number(qp.page) - 1 : 0;
-    let order: Array<any> = [];
-    if (req.query.orderBy && req.query.order) {
-      order.push([req.query.orderBy as string, req.query.order as string]);
-    }
+    try {
+      let qp = req.query;
+      let perPage = Number(qp.perPage) > 0 ? Number(qp.perPage) : 10;
+      let pageNo = Number(qp.page) > 0 ? Number(qp.page) - 1 : 0;
+      let order: Array<any> = [];
 
-    const where: any = {};
-    where["distributor_id"] = req.query.id;
-    if (qp.keyword) {
-      where["name"] = { [Op.like]: "%" + qp.keyword + "%" };
-    }
+      if (qp.orderBy && qp.order) {
+        order.push([qp.orderBy as string, qp.order as string]);
+      }
 
-    if (qp.status && qp.status != "" && qp.status != null) {
-      where["status"] = {
-        [Op.eq]: qp.status,
-      };
-    }
+      const where: any = { distributorId: qp.id };
+      if (qp.keyword) where["name"] = { [Op.like]: `%${qp.keyword}%` };
+      if (qp.status) where["status"] = { [Op.eq]: qp.status };
+      if (qp.paymentSourceId) where["paymentSourceId"] = { [Op.eq]: qp.paymentSourceId };
+      if (qp.date) where["date"] = { [Op.eq]: qp.date };
+      if (qp.amount) where["amount"] = { [Op.eq]: qp.amount };
+      if (qp.billNo) where["billNo"] = { [Op.eq]: qp.billNo };
 
-    if (
-      qp.payment_source &&
-      qp.payment_source != "" &&
-      qp.payment_source != null
-    ) {
-      where["payment_source"] = {
-        [Op.eq]: qp.payment_source,
-      };
-    }
+      let pagination = {};
+      if (qp.perPage && qp.page) {
+        pagination = { offset: perPage * pageNo, limit: perPage };
+      }
 
-    // if (qp.loan_type && qp.loan_type != "" && qp.loan_type != null) {
-    //   where["loan_type"] = {
-    //     [Op.eq]: qp.loan_type,
-    //   };
-    // }
+      logger.info("Fetching distributor debit records", { where, order, pagination });
 
-    if (qp.date && qp.date != "" && qp.date != null) {
-      where["date"] = {
-        [Op.eq]: qp.date,
-      };
-    }
+      const data = await DistributorDebit.findAndCountAll({
+        where,
+        order,
+        distinct: true,
+        ...pagination,
+      });
 
-    if (qp.amount && qp.amount != "" && qp.amount != null) {
-      where["amount"] = {
-        [Op.eq]: qp.amount,
-      };
-    }
+      logger.info("Successfully retrieved records", { count: data.count });
 
-    if (qp.bill_no && qp.bill_no != "" && qp.bill_no != null) {
-      where["bill_no"] = {
-        [Op.eq]: qp.bill_no,
-      };
-    }
-
-    let pagination = {};
-
-    if (qp?.perPage && qp?.page) {
-      pagination = {
-        offset: perPage * pageNo,
-        limit: perPage,
-      };
-    }
-
-    const data = await DistributorDebit.findAndCountAll({
-      where,
-      order,
-      distinct: true,
-      ...pagination,
-    }).catch((e) => {
-      console.log(e);
-    });
-
-    if (qp.hasOwnProperty("page")) {
-      return res.Success("list", paging(data, pageNo, perPage));
-    } else {
-      return res.Success("list", data);
+      return ResponseHandler.success(
+        res,
+        "Distributor debit records fetched successfully",
+        qp.hasOwnProperty("page") ? paging(data, pageNo, perPage) : data
+      );
+    } catch (error) {
+      logger.error("Error fetching distributor debit records", { error: error.message });
+      return ResponseHandler.error(res, "Failed to fetch distributor debit records", 500, error);
     }
   }
 
+
   public async save(req: express.Request, res: express.Response) {
-    const schema = Joi.object().keys({
-      distributor_id: Joi.number().required(),
+    const schema = Joi.object({
+      distributorId: Joi.number().required(),
       amount: Joi.number().required().integer().min(1),
-      bill_no: Joi.number().optional().integer(),
-      description: Joi.string().optional(),
-      installment_count: Joi.optional(),
-      installment_amount: Joi.optional(),
-      payment_source: Joi.required(),
+      billNo: Joi.number().optional().integer(),
+      description: Joi.optional(),
+      installmentCount: Joi.optional(),
+      installmentAmount: Joi.optional(),
+      paymentSourceId: Joi.required(),
       date: Joi.string().required(),
-      status: Joi.required(),
+      status: Joi.optional(),
     });
 
     const { error, value } = schema.validate(req.body);
     if (error instanceof ValidationError) {
-      return res.Error(error.details[0].message);
+      logger.warn("Validation failed", { error: error.details[0].message });
+      return ResponseHandler.error(res, error.details[0].message, 400);
     }
-    console.log(req.body.date);
-    const catData = {
-      distributor_id: req.body.distributor_id,
-      amount: req.body.amount,
-      description: req.body.description ?? null,
-      installment_amount: req.body.installment_amount ?? 0,
-      installment_count: req.body.installment_count ?? 0,
-      // return_date: req.body.return_date ?? null,
-      bill_no: req.body.bill_no ?? null, // Make bill_no optional using conditional assignment
-      date: req.body.date,
-      payment_source: req.body.payment_source ?? "",
-      status: req.body.status,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    const distributorId = Number(req.body.distributor_id);
-    const additionalAmount = req.body.amount;
+
     try {
-      const instance = await DistributorDebit.create(catData);
-      const loanTaker = await Distributor.findOne({
-        where: { id: distributorId },
-      });
+      logger.info("Creating distributor debit record", { value });
+      const instance = await DistributorDebit.create(value);
 
-      if (loanTaker) {
-        let currentLoanAmount = loanTaker.loan_amount;
-        let remainingLoanAmount = loanTaker.remaining_amount;
-
-        currentLoanAmount += additionalAmount;
-
-        // Calculate the remaining loan amount after the update
-        remainingLoanAmount = remainingLoanAmount + additionalAmount;
-
-        // Update the loan amount in the database
-        await Distributor.update(
-          {
-            loan_amount: currentLoanAmount,
-            remaining_amount: remainingLoanAmount,
-          },
-          { where: { id: distributorId } }
-        );
-      } else {
-        return res.Error("Pass Correct Distributor  id");
+      const loanTaker = await Distributor.findOne({ where: { id: Number(value.distributorId) } });
+      if (!loanTaker) {
+        logger.warn("Distributor not found");
+        return ResponseHandler.error(res, "Pass Correct Distributor ID", 400);
       }
 
-      return res.Success("Added Successfully", instance);
+      let currentLoanAmount = loanTaker.loanAmount;
+      let remainingLoanAmount = loanTaker.remainingAmount;
+
+      currentLoanAmount += Number(value.amount);
+      remainingLoanAmount += Number(value.amount);
+
+      await Distributor.update(
+        {
+          loanAmount: currentLoanAmount,
+          remainingAmount: remainingLoanAmount,
+        },
+        { where: { id: Number(value.distributorId) } }
+      );
+
+      logger.info("Distributor loan updated", { currentLoanAmount, remainingLoanAmount });
+      return ResponseHandler.success(res, "Added Successfully", instance, 201);
     } catch (e: any) {
-      console.log("Error", e);
-      return res.Error("Error in adding record");
-      //   (global as any).log.error(e);
+      logger.error("Error in adding record", { error: e.message });
+      return ResponseHandler.error(res, "Error in adding record", 500, e);
     }
   }
 
   public async update(req: express.Request, res: express.Response) {
     const schema = Joi.object().keys({
       id: Joi.number().required(),
-      distributor_id: Joi.number().required(),
-      // loan_type: Joi.string().optional().valid("cash", "items"),
+      distributorId: Joi.number().required(),
       amount: Joi.number().optional().integer().min(1),
-      bill_no: Joi.number().optional().integer(),
+      billNo: Joi.optional(), // Removed integer() to support BIGINT
       description: Joi.string().optional(),
-      payment_source: Joi.optional(),
+      paymentSourceId: Joi.optional(),
       status: Joi.optional(),
-      return_date: Joi.optional(),
-      installment_count: Joi.optional(),
-      installment_amount: Joi.optional(),
+      returnDate: Joi.optional(),
+      installmentCount: Joi.optional(),
+      installmentAmount: Joi.optional(),
     });
 
     const { error, value } = schema.validate(req.body);
-    if (error instanceof ValidationError) {
-      res.Error(error.details[0].message);
-      return;
+    if (error) {
+      logger.error(`Validation Error: ${error.details[0].message}`);
+      return ResponseHandler.error(res, error.details[0].message, 400);
     }
 
-    const debit: any = await Loan.findByPk(req.body.id);
-
-    if (!debit) {
-      res.Error("No Record Found");
-      return;
-    }
-
-    const debitData = {
-      distributor_id: req.body.distributor_id,
-      amount: req.body.amount,
-      description: req.body.description ?? null,
-      bill_no: req.body.bill_no ?? null, // Make bill_no optional using conditional assignment
-      status: req.body.status,
-      payment_source: req.body.payment_source ?? "",
-      updatedAt: new Date(),
-      return_date: req.body.return_date ?? null,
-      installment_count: req.body.installment_count ?? 0,
-      installment_amount: req.body.installment_amount ?? 0,
-    };
     try {
-      const instance = await DistributorDebit.update(debitData, {
+      const debit: any = await Loan.findByPk(req.body.id);
+
+      if (!debit) {
+        logger.warn(`No Record Found for ID: ${req.body.id}`);
+        return ResponseHandler.error(res, "No Record Found", 404);
+      }
+
+      const debitData = {
+        distributorId: req.body.distributorId,
+        amount: req.body.amount,
+        description: req.body.description ?? null,
+        billNo: req.body.billNo ?? null,
+        status: req.body.status,
+        paymentSourceId: req.body.paymentSourceId ?? "",
+        updatedAt: new Date(),
+        returnDate: req.body.returnDate ?? null,
+        installmentCount: req.body.installmentCount ?? 0,
+        installmentAmount: req.body.installmentAmount ?? 0,
+      };
+
+      const [updatedRows] = await DistributorDebit.update(debitData, {
         where: { id: req.body.id },
       });
-      if (!instance) {
-        return res.Error("Error in updating record please fill correct data");
+
+      if (updatedRows === 0) {
+        logger.warn(`Update Failed for ID: ${req.body.id}`);
+        return ResponseHandler.error(res, "Error in updating record. Please check the provided data.", 400);
       }
+
       const res_data = await DistributorDebit.findByPk(req.body.id);
-      return res.Success("updated successfully", res_data);
+      logger.info(`Record Updated Successfully for ID: ${req.body.id}`);
+
+      return ResponseHandler.success(res, "Updated successfully", res_data);
+
     } catch (e: any) {
-      return res.Error("Error in updating record please fill correct data");
-      console.log("Error in updating Loan", e);
-      (global as any).log.error(e);
+      logger.error(`Error in updating Loan: ${e.message}`, { error: e });
+      return ResponseHandler.error(res, "Internal Server Error. Please try again later.", 500);
     }
   }
 

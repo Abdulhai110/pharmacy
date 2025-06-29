@@ -7,22 +7,22 @@ import {
   Sequelize,
 } from "sequelize";
 import { sequelize } from "../config/connection";
-import { StatusEnum } from "../constants/enum";
+import { LoanTypeEnum, StatusEnum } from "../constants/enum";
 import { enumKeys } from "../helpers/helper";
 export class DistributorLoan extends Model<
   InferAttributes<DistributorLoan>,
   InferCreationAttributes<DistributorLoan>
 > {
   id: number | null;
-  loan_taker_id: number;
-  loan_type: string;
+  loanTakerId: number;
+  loanType: string;
   description: string;
   amount: number;
-  bill_no: number;
+  billNo: number;
   date?: Date;
-  return_date?: Date;
-  installment_amount?: number;
-  installment_count?: number;
+  returnDate?: Date;
+  installmentAmount?: number;
+  installmentCount?: number;
   status: StatusEnum;
   createdAt?: Date;
   updatedAt?: Date;
@@ -35,38 +35,40 @@ DistributorLoan.init(
       primaryKey: true,
       autoIncrement: true,
     },
-    loan_taker_id: {
+    loanTakerId: {
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
     },
     date: {
-      type: DataTypes.DATEONLY,
+      type: DataTypes.DATE,
       allowNull: false,
+      defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
     },
-    return_date: {
-      type: DataTypes.DATEONLY,
+    returnDate: {
+      type: DataTypes.DATE,
       allowNull: true,
+      defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
     },
-    loan_type: {
-      type: DataTypes.ENUM("cash", "items"),
+    loanType: {
+      type: DataTypes.ENUM(...enumKeys(LoanTypeEnum)),
       allowNull: false,
-      defaultValue: "cash",
+      defaultValue: LoanTypeEnum.money,
     },
     amount: {
       type: DataTypes.INTEGER,
       allowNull: false,
     },
-    installment_amount: {
+    installmentAmount: {
       type: DataTypes.INTEGER,
       defaultValue: 0,
       allowNull: true,
     },
-    installment_count: {
+    installmentCount: {
       type: DataTypes.INTEGER,
       defaultValue: 0,
       allowNull: true,
     },
-    bill_no: {
+    billNo: {
       type: DataTypes.INTEGER,
       allowNull: true,
     },
@@ -77,22 +79,11 @@ DistributorLoan.init(
       type: DataTypes.ENUM(...enumKeys(StatusEnum)),
       defaultValue: StatusEnum.Active,
     },
-    createdAt: {
-      type: "TIMESTAMP",
-      defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
-      allowNull: false,
-    },
-    updatedAt: {
-      type: "TIMESTAMP",
-      defaultValue: Sequelize.literal(
-        "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-      ),
-      allowNull: false,
-    },
+
   },
   {
     sequelize,
-    timestamps: false,
+    timestamps: true,
     tableName: "distributor_loans",
   }
 );

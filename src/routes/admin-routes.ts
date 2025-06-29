@@ -12,6 +12,11 @@ import {
   DistributorDebitController,
   DistributorCreditController,
 } from "../controllers/controller";
+import { AccountController } from "../controllers/bank-account.controller";
+import { BankController } from "../controllers/bank.controller";
+import { ExpenseController } from "../controllers/expense.controller";
+import { ExpenseCategoryController } from "../controllers/expense-category.controller";
+import { LedgerController } from "../controllers/LedgerController";
 
 // import {uploadFiles} from "../helpers/helper"
 
@@ -39,6 +44,10 @@ export class AdminRoutes extends RoutesConfig {
     this.distributorDebitRoutes();
     this.distributorCreditRoutes();
     this.todayLoansTransactions();
+    this.bankAccountRoutes();
+    this.bankRoutes();
+    this.expenseRoutes();
+    this.ledgerRoutes();
     return this.app;
   }
 
@@ -46,24 +55,27 @@ export class AdminRoutes extends RoutesConfig {
     const route = express.Router();
     const controller = DistributorController.init();
     // route.post("/create", controller.storeCategory);
+    route.get("", controller.distributors);
     route.get("/list", controller.list);
     route.post("/add", controller.save);
     route.post("/update", controller.update);
     route.post("/update-status", controller.updateStatus);
     route.post("/delete", controller.del);
+    route.post("/transaction", controller.transaction);
     this.route.use("/distributor", route);
   }
 
   loanTakerRoutes() {
     const route = express.Router();
     const controller = LoanTakerController.init();
+    route.get("", controller.loanTakers);
     route.get("/list", controller.list);
     route.post("/add", controller.save);
     route.post("/update", controller.update);
     route.post("/detail", controller.detail);
     route.post("/update-status", controller.updateStatus);
     route.post("/delete", controller.del);
-    route.post("/loan/loans-list", controller.loanList);
+    route.get("/loan/loans-list", controller.loanList);
     route.get("/transaction/transactions-list", controller.transactionList);
     route.post("/loan/loan-detail", controller.loanDetail);
     this.route.use("/loan-taker", route);
@@ -121,13 +133,14 @@ export class AdminRoutes extends RoutesConfig {
     const route = express.Router();
     const controller = DailyClosing.init();
     route.get("/list", controller.list);
-    route.post("/detail", controller.detail);
-    route.post("/downloadPdf", controller.downloadPdf);
+    route.get("/detail", controller.detail);
+    route.post("/download-pdf", controller.downloadPdf);
     route.post("/add", controller.save);
     route.post("/update", controller.update);
     route.post("/update-status", controller.updateStatus);
     route.post("/delete", controller.del);
-    this.route.use("/daily-closing", route);
+    route.get("/today-transactions", controller.todayTransaction);
+    this.route.use("/closing", route);
   }
 
   dailyLedgerRoutes() {
@@ -157,5 +170,85 @@ export class AdminRoutes extends RoutesConfig {
     route.post("/update-status", controller.updateStatus);
     route.post("/delete", controller.del);
     this.route.use("/today", route);
+  }
+
+  bankAccountRoutes() {
+    const route = express.Router();
+    const controller = AccountController.init(); // Use init() instead of new
+
+    route.get("", controller.accounts);
+    route.get("/list", controller.list);
+    route.post("/add", controller.create);
+    route.post("/update", controller.update);
+    route.post("/transaction", controller.processTransaction);
+    route.get("/transactions", controller.getTransactions);
+    route.post("/transfer", controller.transfer);
+
+    this.route.use("/account", route);
+  }
+
+  bankRoutes() {
+    const route = express.Router();
+    const allBanks = express.Router();
+    const controller = BankController.init();
+
+    // Get list of banks with pagination
+    route.get("/list", controller.list);
+
+    // Create new bank
+    route.post("/add", controller.create);
+
+    // Update bank details
+    route.post("/update", controller.update);
+
+    // Get bank details
+    route.get("/detail", controller.detail);
+
+    // Update bank status
+    route.post("/update-status", controller.updateStatus);
+
+    // Delete bank (soft delete)
+    route.post("/delete", controller.delete);
+
+    // Get all banks with specified format
+    allBanks.get("/", controller.getAllBanks);
+
+    this.route.use("/bank", route);
+    this.route.use("/banks", allBanks);
+  }
+
+  expenseRoutes() {
+    const expenseController = ExpenseController.init();
+    const categoryController = ExpenseCategoryController.init();
+    const route = express.Router();
+
+    // Expense routes
+    route.get("/expenses/list", expenseController.list);
+    route.get("/expenses/:id", expenseController.get);
+    route.post("/add", (req, res) => expenseController.create(req, res));
+    route.put("/update", (req, res) => expenseController.update(req, res));
+    route.delete("/:id", (req, res) => expenseController.delete(req, res));
+    // route.post("/expenses/process-recurring", expenseController.processRecurring);
+    route.get("/expenses/stats", expenseController.stats);
+
+    // Category routes
+    route.get("/categories", categoryController.expenseCategories);
+    route.get("/categories/list", categoryController.list);
+    route.post("/categories", categoryController.create);
+    route.put("/categories", categoryController.update);
+    route.delete("/categories/:id", categoryController.delete);
+
+    this.route.use('/expense', route)
+  }
+
+  ledgerRoutes() {
+    const ledgerController = LedgerController.init();
+    const route = express.Router();
+
+    // Expense routes
+    route.get("", ledgerController.getLedger.bind(ledgerController));
+    route.get("/summary", ledgerController.getLedgerSummary);
+
+    this.route.use('/ledger', route)
   }
 }

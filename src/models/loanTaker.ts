@@ -17,12 +17,12 @@ export class LoanTaker extends Model<
 > {
   id: number | null;
   name: string;
-  phone_number: string;
+  phoneNumber: string;
   cnic: string;
   description: string;
-  loan_amount?: number;
-  remaining_amount?: number;
-  paid_amount?: number;
+  loanAmount?: number;
+  remainingAmount?: number;
+  paidAmount?: number;
   status: StatusEnum;
   createdAt?: Date;
   updatedAt?: Date;
@@ -42,7 +42,7 @@ LoanTaker.init(
     description: {
       type: DataTypes.STRING(100),
     },
-    phone_number: {
+    phoneNumber: {
       type: DataTypes.STRING(50),
       allowNull: true,
     },
@@ -50,17 +50,17 @@ LoanTaker.init(
       type: DataTypes.STRING(50),
       allowNull: false,
     },
-    loan_amount: {
+    loanAmount: {
       type: DataTypes.INTEGER,
       defaultValue: 0,
       allowNull: false,
     },
-    remaining_amount: {
+    remainingAmount: {
       type: DataTypes.INTEGER,
       defaultValue: 0,
       allowNull: true,
     },
-    paid_amount: {
+    paidAmount: {
       type: DataTypes.INTEGER,
       defaultValue: 0,
       allowNull: true,
@@ -69,31 +69,19 @@ LoanTaker.init(
       type: DataTypes.ENUM(...enumKeys(StatusEnum)),
       defaultValue: StatusEnum.Active,
     },
-    createdAt: {
-      type: "TIMESTAMP",
-      defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
-      allowNull: false,
-    },
-    updatedAt: {
-      type: "TIMESTAMP",
-      defaultValue: Sequelize.literal(
-        "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-      ),
-      allowNull: false,
-    },
   },
   {
     sequelize,
-    timestamps: false,
+    timestamps: true,
     tableName: "loan_takers",
   }
 );
 
 LoanTaker.hasMany(LoanTransaction, {
-  foreignKey: "loan_taker_id",
+  foreignKey: "loanTakerId",
 });
 LoanTaker.hasMany(Loan, {
-  foreignKey: "loan_taker_id",
+  foreignKey: "loanTakerId",
 });
 
-// LoanTaker.belongsTo(Loan, { foreignKey: 'loan_taker_id' });
+// LoanTaker.belongsTo(Loan, { foreignKey: 'loanTakerId' });

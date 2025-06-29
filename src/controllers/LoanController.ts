@@ -1,271 +1,243 @@
+import { endOfDay, startOfDay } from 'date-fns';
 import express from "express";
-// import { Loan } from "../models/Loan";
 import { Loan } from "../models/loan";
 import Joi from "joi";
 import { ValidationError } from "sequelize";
 const { Op } = require("sequelize");
-import { paging, enumKeys } from "../helpers/helper";
+import { enumKeys, paging } from "../helpers/helper";
 import { LoanTaker } from "../models/loanTaker";
+import { ResponseHandler } from "../utils/respHandler";
+import logger from "../utils/logger";
+import { LoanTransactionEnum, LoanTypeEnum, PaymentMethodEnum, TransactionStatusEnum, TransactionTypeEnum } from '../constants/enum';
+import { sequelize } from '../config/connection';
+import { Account } from '../models/BankAccounts';
+import { Transaction } from '../models/BankTransactions';
 
-const cloudinary = require("cloudinary").v2;
 export class LoanController {
   private static instance: LoanController | null = null;
 
-  private constructor() {}
+  private constructor() { }
 
   static init(): LoanController {
     if (this.instance == null) {
       this.instance = new LoanController();
     }
-
     return this.instance;
   }
 
   async list(req: express.Request, res: express.Response) {
-    let qp = req.query;
-    let perPage: any = Number(qp.perPage) > 0 ? Number(qp.perPage) : 10;
-    let pageNo: any = Number(qp.page) > 0 ? Number(qp.page) - 1 : 0;
-    let order: Array<any> = [];
-    if (req.query.orderBy && req.query.order) {
-      order.push([req.query.orderBy as string, req.query.order as string]);
-    }
+    try {
+      let { limit, offset, orderBy, id, order, billNo, status, loanType, date } = req.query;
 
-    const where: any = {};
+      let orderQuery: [string, "ASC" | "DESC"][] = [];
+      if (orderBy && order) {
+        orderQuery.push([orderBy as string, order as "ASC" | "DESC"]);
+      } let where: any = {};
 
-    if (qp.keyword) {
-      where["name"] = { [Op.like]: "%" + qp.keyword + "%" };
-    }
+      if (id) where["loanTakerId"] = id;
+      if (billNo) where["billNo"] = { [Op.like]: billNo };
+      if (status) where["status"] = { [Op.eq]: status };
+      if (loanType) where["loanType"] = { [Op.eq]: loanType };
+      if (date) {
+        const parsedDate = new Date(date as string);
+        where["date"] = {
+          [Op.between]: [
+            startOfDay(parsedDate),
+            endOfDay(parsedDate)
+          ]
+        };
+      }
+      let data = await Loan.findAndCountAll({ where, order: orderQuery, distinct: true, limit: Number(limit), offset: Number(offset) });
 
-    if (qp.status && qp.status != "" && qp.status != null) {
-      where["status"] = {
-        [Op.eq]: qp.status,
-      };
-    }
-
-    if (qp.loan_type && qp.loan_type != "" && qp.loan_type != null) {
-      where["loan_type"] = {
-        [Op.eq]: qp.loan_type,
-      };
-    }
-
-    if (qp.date && qp.date != "" && qp.date != null) {
-      where["date"] = {
-        [Op.eq]: qp.date,
-      };
-    }
-
-    let pagination = {};
-
-    if (qp?.perPage && qp?.page) {
-      pagination = {
-        offset: perPage * pageNo,
-        limit: perPage,
-      };
-    }
-
-    const data = await Loan.findAndCountAll({
-      where,
-      order,
-      distinct: true,
-      ...pagination,
-    }).catch((e) => {
-      console.log(e);
-    });
-
-    if (qp.hasOwnProperty("page")) {
-      return res.Success("list", paging(data, pageNo, perPage));
-    } else {
-      return res.Success("list", data);
+      return ResponseHandler.success(res, "List retrieved successfully", paging(data, Number(offset), Number(limit)), 200);
+    } catch (err) {
+      logger.error("Error fetching loans", { error: err });
+      return ResponseHandler.error(res, "Internal Server Error", 500, err);
     }
   }
 
   public async save(req: express.Request, res: express.Response) {
-    const schema = Joi.object().keys({
-      loan_taker_id: Joi.number().required(),
-      loan_type: Joi.string().required().valid("cash", "items"),
-      amount: Joi.number().required().integer().min(1),
-      bill_no: Joi.number().optional().integer(),
-      description: Joi.string().optional(),
-      return_date: Joi.optional(),
-      installment_count: Joi.optional(),
-      installment_amount: Joi.optional(),
+    const schema = Joi.object({
+      id: Joi.optional(),
+      loanTakerId: Joi.number().required(),
+      loanType: Joi.string().valid(...enumKeys(LoanTypeEnum)).required(),
+      amount: Joi.number().integer().min(1).required(),
+      billNo: Joi.number().integer().optional(),
+      description: Joi.allow(null, '').optional(),
+      paymentSourceId: Joi.alternatives().conditional('loanType', {
+        is: LoanTypeEnum.money,
+        then: Joi.number().greater(0).required(),
+        otherwise: Joi.any().forbidden(),
+      }),
       date: Joi.string().required(),
-      status: Joi.required(),
+      status: Joi.optional(),
     });
 
     const { error, value } = schema.validate(req.body);
-    if (error instanceof ValidationError) {
-      return res.Error(error.details[0].message);
+    if (error) {
+      logger.warn("Validation error", { error: error.details[0].message });
+      return ResponseHandler.error(res, error.details[0].message, 400);
     }
 
-    const catData = {
-      loan_taker_id: req.body.loan_taker_id,
-      loan_type: req.body.loan_type,
-      amount: req.body.amount,
-      description: req.body.description ?? null,
-      installment_amount: req.body.installment_amount ?? 0,
-      installment_count: req.body.installment_count ?? 0,
-      return_date: req.body.return_date ?? null,
-      bill_no: req.body.bill_no ?? null, // Make bill_no optional using conditional assignment
-      date: req.body.date,
-      status: req.body.status,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    const loanTakerId = Number(req.body.loan_taker_id);
-    const additionalAmount = req.body.amount;
+    const t = await sequelize.transaction();
     try {
-      const instance = await Loan.create(catData);
-      const loanTaker = await LoanTaker.findOne({
-        where: { id: loanTakerId },
-      });
+      // Step 1: Handle account balance check if payment source is provided
+      if (value.paymentSourceId && value.paymentSourceId > 0) {
+        const account = await Account.findByPk(Number(value.paymentSourceId), { transaction: t });
 
-      if (loanTaker) {
-        let currentLoanAmount = loanTaker.loan_amount;
-        let remainingLoanAmount = loanTaker.remaining_amount;
+        if (!account) {
+          await t.rollback();
+          return ResponseHandler.error(res, "Invalid account/payment source", 404);
+        }
 
-        currentLoanAmount += additionalAmount;
+        if (Number(account.balance) < Number(value.amount)) {
+          await t.rollback();
+          return ResponseHandler.error(res, "Insufficient account balance", 400);
+        }
 
-        // Calculate the remaining loan amount after the update
-        remainingLoanAmount = remainingLoanAmount + additionalAmount;
+        // Deduct the amount
+        account.balance = Number(account.balance) - Number(value.amount);
+        await account.save({ transaction: t });
 
-        // Update the loan amount in the database
-        await LoanTaker.update(
-          {
-            loan_amount: currentLoanAmount,
-            remaining_amount: remainingLoanAmount,
-          },
-          { where: { id: loanTakerId } }
-        );
-      } else {
-        return res.Error("Pass Correct Loan Taker id");
+        // await this.createTransaction({
+        //   transactionType: TransactionTypeEnum.Withdrawal,
+        //   amount: value.amount,
+        //   description: value.description || `Loan issued`,
+        //   accountId: value.paymentSourceId,
+        //   refrenceNumber: `LOAN-${Date.now()}`,
+        //   paymentMethod: PaymentMethodEnum.BankTransfer,
+        //   transaction: t
+        // });
       }
 
-      return res.Success("Added Successfully", instance);
-    } catch (e: any) {
-      console.log("Error", e);
-      return res.Error("Error in adding record");
-      //   (global as any).log.error(e);
+      // Step 2: Save loan
+      const loan = await Loan.create(value, { transaction: t });
+
+      // Step 3: Update LoanTaker
+      const loanTaker = await LoanTaker.findByPk(value.loanTakerId, { transaction: t });
+      if (!loanTaker) {
+        await t.rollback();
+        return ResponseHandler.error(res, "Invalid Loan Taker ID", 404);
+      }
+
+      loanTaker.loanAmount += value.amount;
+      loanTaker.remainingAmount += value.amount;
+      await loanTaker.save({ transaction: t });
+
+      await t.commit();
+      return ResponseHandler.success(res, "Loan added successfully", loan, 201);
+    } catch (err) {
+      await t.rollback();
+      logger.error("Error saving loan", { error: err });
+      return ResponseHandler.error(res, "Error in adding record", 500, err);
     }
   }
 
+
   public async update(req: express.Request, res: express.Response) {
-    const schema = Joi.object().keys({
+    const schema = Joi.object({
       id: Joi.number().required(),
-      loan_taker_id: Joi.number().required(),
-      loan_type: Joi.string().optional().valid("cash", "items"),
-      amount: Joi.number().optional().integer().min(1),
-      bill_no: Joi.number().optional().integer(),
+      loanTakerId: Joi.number().required(),
+      loanType: Joi.string().valid(...enumKeys(LoanTypeEnum)).optional(),
+      amount: Joi.number().integer().min(1).optional(),
+      billNo: Joi.number().integer().optional(),
       description: Joi.string().optional(),
       status: Joi.optional(),
-      return_date: Joi.optional(),
-      installment_count: Joi.optional(),
-      installment_amount: Joi.optional(),
+      returnDate: Joi.optional(),
+      installmentCount: Joi.optional(),
+      installmentAmount: Joi.optional(),
     });
 
     const { error, value } = schema.validate(req.body);
-    if (error instanceof ValidationError) {
-      res.Error(error.details[0].message);
-      return;
+    if (error) {
+      logger.warn("Validation error", { error: error.details[0].message });
+      return ResponseHandler.error(res, error.details[0].message, 400);
     }
 
-    const Loanr: any = await Loan.findByPk(req.body.id);
-
-    if (!Loanr) {
-      res.Error("No Record Found");
-      return;
-    }
-
-    const LoanData = {
-      loan_taker_id: req.body.loan_taker_id,
-      loan_type: req.body.loan_type,
-      amount: req.body.amount,
-      description: req.body.description ?? null,
-      bill_no: req.body.bill_no ?? null, // Make bill_no optional using conditional assignment
-      status: req.body.status,
-      updatedAt: new Date(),
-      return_date: req.body.return_date ?? null,
-      installment_count: req.body.installment_count ?? 0,
-      installment_amount: req.body.installment_amount ?? 0,
-    };
     try {
-      const instance = await Loan.update(LoanData, {
-        where: { id: req.body.id },
-      });
-      if (!instance) {
-        return res.Error("Error in updating record please fill correct data");
-      }
-      const res_data = await Loan.findByPk(req.body.id);
-      return res.Success("updated successfully", res_data);
-    } catch (e: any) {
-      return res.Error("Error in updating record please fill correct data");
-      console.log("Error in updating Loan", e);
-      (global as any).log.error(e);
+      const updated = await Loan.update(value, { where: { id: value.id } });
+      if (!updated[0]) return ResponseHandler.error(res, "No record found or no change made", 404);
+      const updatedLoan = await Loan.findByPk(value.id);
+      return ResponseHandler.success(res, "Updated successfully", updatedLoan, 200);
+    } catch (err) {
+      logger.error("Error updating loan", { error: err });
+      return ResponseHandler.error(res, "Error updating record", 500, err);
     }
+  }
+
+
+  async createTransaction({
+    transactionType,
+    amount,
+    description,
+    accountId,
+    refrenceNumber = '',
+    paymentMethod,
+    transaction
+  }: {
+    transactionType: any;
+    amount: number;
+    description: string;
+    accountId: number;
+    refrenceNumber?: string;
+    paymentMethod: PaymentMethodEnum
+    transaction?: any;
+  }) {
+    const txn = await Transaction.create({
+      transactionType,
+      amount,
+      description,
+      accountId,
+      refrenceNumber,
+      paymentMethod,
+      status: TransactionStatusEnum.Completed
+    }, { transaction });
+
+    return txn;
   }
 
   public async detail(req: express.Request, res: express.Response) {
-    const schema = Joi.object().keys({
-      id: Joi.number().required(),
-    });
+    const schema = Joi.object({ id: Joi.number().required() });
     const { error, value } = schema.validate(req.body);
+    if (error) return ResponseHandler.error(res, error.details[0].message, 400);
 
-    if (error instanceof ValidationError) {
-      res.Error(error.details[0].message);
-      return;
-    }
-
-    const result = await Loan.findOne({
-      where: { id: Number(req.body.id) },
-    });
-    // console.log(review);
-
-    if (result === null) {
-      res.Error("data not found");
-      return;
-    }
-
-    res.Success("Detail", result);
-  }
-
-  async updateStatus(req: express.Request, res: express.Response) {
-    // (global as any).log.info("Update Status");
-
-    const schema = Joi.object().keys({
-      status: Joi.string().required(),
-      id: Joi.number().required(),
-    });
-    const { error, value } = schema.validate(req.body);
-
-    if (error instanceof ValidationError) {
-      res.Error(error.details[0].message);
-      return;
-    }
-
-    const data: any = await Loan.update(
-      { status: req.body.status },
-      { where: { id: req.body.id } }
-    );
-
-    if (data == null) {
-      res.Error("record not Found");
-      return;
-    }
-    return res.Success("status updated successfully");
-  }
-  // del user
-  async del(req: express.Request, res: express.Response) {
     try {
-      let data = await Loan.destroy({
-        where: {
-          id: Number(req.body.id),
-        },
-      });
+      const result = await Loan.findByPk(value.id);
+      if (!result) return ResponseHandler.error(res, "Data not found", 404);
+      return ResponseHandler.success(res, "Detail retrieved successfully", result, 200);
     } catch (err) {
-      console.log(err);
-      res.Error("error in deleting Loan");
+      logger.error("Error fetching loan detail", { error: err });
+      return ResponseHandler.error(res, "Internal Server Error", 500, err);
     }
+  }
 
-    res.Success("Successfullt deleted");
+  public async updateStatus(req: express.Request, res: express.Response) {
+    const schema = Joi.object({ id: Joi.number().required(), status: Joi.string().required() });
+    const { error, value } = schema.validate(req.body);
+    if (error) return ResponseHandler.error(res, error.details[0].message, 400);
+
+    try {
+      const updated = await Loan.update({ status: value.status }, { where: { id: value.id } });
+      if (!updated[0]) return ResponseHandler.error(res, "Record not found or no change made", 404);
+      return ResponseHandler.success(res, "Status updated successfully", null, 200);
+    } catch (err) {
+      logger.error("Error updating loan status", { error: err });
+      return ResponseHandler.error(res, "Internal Server Error", 500, err);
+    }
+  }
+
+  public async del(req: express.Request, res: express.Response) {
+    const schema = Joi.object({ id: Joi.number().required() });
+    const { error, value } = schema.validate(req.body);
+    if (error) return ResponseHandler.error(res, error.details[0].message, 400);
+
+    try {
+      const deleted = await Loan.destroy({ where: { id: value.id } });
+      if (!deleted) return ResponseHandler.error(res, "Record not found", 404);
+      return ResponseHandler.success(res, "Successfully deleted", null, 200);
+    } catch (err) {
+      logger.error("Error deleting loan", { error: err });
+      return ResponseHandler.error(res, "Internal Server Error", 500, err);
+    }
   }
 }

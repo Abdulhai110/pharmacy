@@ -53,23 +53,11 @@ Profile.init(
     phoneno: {
       type: DataTypes.STRING(50),
       allowNull: true,
-    },
-    createdAt: {
-      type: "TIMESTAMP",
-      defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
-      allowNull: false,
-    },
-    updatedAt: {
-      type: "TIMESTAMP",
-      defaultValue: Sequelize.literal(
-        "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-      ),
-      allowNull: false,
-    },
+    }
   },
   {
     sequelize,
-    timestamps: false,
+    timestamps: true,
     tableName: "profiles",
   }
 );

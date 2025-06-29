@@ -93,19 +93,6 @@ User.init(
       allowNull: true,
       defaultValue: null,
     },
-
-    createdAt: {
-      type: "TIMESTAMP",
-      defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
-      allowNull: false,
-    },
-    updatedAt: {
-      type: "TIMESTAMP",
-      defaultValue: Sequelize.literal(
-        "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-      ),
-      allowNull: false,
-    },
   },
   {
     hooks: {
@@ -135,7 +122,7 @@ User.init(
       //end hooks
     },
     sequelize,
-    timestamps: false,
+    timestamps: true,
     tableName: "users",
   }
 );
@@ -158,9 +145,9 @@ Profile.belongsTo(User, {
 // Contact.belongsTo(User)
 
 // User.hasOne(ProductReview , {
-//   foreignKey: 'user_id'
+//   foreignKey: 'userId'
 // })
 
 // ProductReview.belongsTo(User,{
-//   foreignKey: 'user_id'
+//   foreignKey: 'userId'
 // })

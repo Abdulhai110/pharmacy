@@ -2,6 +2,7 @@
 
 const fs = require("fs");
 const path = require("path");
+require("dotenv").config();
 const Sequelize = require("sequelize");
 const basename = path.basename(__filename);
 const env = process.env.NODE_ENV || "development";
@@ -48,10 +49,13 @@ Object.keys(db).forEach((modelName) => {
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;
 // Sync the database
-sequelize.sync({ force: true }).then(() => {
-  console.log('Database synced successfully');
-}).catch((err) => {
-  console.error('Error syncing database', err);
-});
+sequelize
+  .sync({ force: true })
+  .then(() => {
+    console.log("Database synced successfully");
+  })
+  .catch((err) => {
+    console.error("Error syncing database", err);
+  });
 
 module.exports = db;

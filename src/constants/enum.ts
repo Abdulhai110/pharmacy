@@ -5,6 +5,7 @@ export enum UserTypeEnum {
 export enum StatusEnum {
   Active = "Active",
   Inactive = "Inactive",
+  Deleted = 'Deleted',
 }
 
 export enum PaymentSourceEnum {
@@ -12,6 +13,48 @@ export enum PaymentSourceEnum {
   JAZZCASH = "JAZZCASH",
   EASYPASA = "EASYPASA",
   BANK = "BANK",
+}
+
+export enum AccountTypeEnum {
+  Savings = 'Savings',
+  Current = 'Current',
+  FixedDeposit = 'FixedDeposit',
+  Loan = 'Loan',
+}
+
+export enum TransactionTypeEnum {
+  Deposit = 'Deposit',
+  Withdrawal = 'Withdrawal',
+  Transfer = 'Transfer',
+  Payment = 'Payment',
+  Expense = 'Expense',
+}
+
+export enum LoanTransactionEnum {
+  DEBIT = 'Debit',
+  CREDIT = 'Credit',
+}
+
+export enum TransactionStatusEnum {
+  Pending = 'Pending',
+  Completed = 'Completed',
+  Reversed = 'Reversed',
+  Failed = 'Failed'
+}
+
+export enum PaymentMethodEnum {
+  Cash = 'Cash',
+  Cheque = 'Cheque',
+  BankTransfer = 'BankTransfer',
+  Card = 'Card',
+  Online = 'Online',
+}
+
+export enum RecurringIntervalEnum {
+  Daily = 'Daily',
+  Weekly = 'Weekly',
+  Monthly = 'Monthly',
+  Yearly = 'Yearly',
 }
 
 export enum OrderStatusEnum {
@@ -26,9 +69,14 @@ export enum PaymentStatusEnum {
   rejected = "rejected",
 }
 
-// export enum deliveryCharges {
-//     PUNJAB = '250',
-//     KPK = '350',
-//     SINDH = '350',
-//     BLOCHISTAN= "350"
-// }
+export enum LoanTypeEnum {
+  money = 'MONEY',
+  items = 'ITEMS'
+}
+
+
+export enum ModuleTypeEnum {
+  loanTakers = 'loanTakers',
+  distributors = 'distributors',
+  expenses = 'expenses'
+}

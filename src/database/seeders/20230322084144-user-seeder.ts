@@ -1,7 +1,7 @@
 "use strict";
 
 import { UserTypeEnum } from "../../constants/enum";
-import Sequelize from "sequelize";
+import { Sequelize } from "sequelize"; // Corrected import statement
 
 module.exports = {
   async up(queryInterface: any, Sequelize: any) {

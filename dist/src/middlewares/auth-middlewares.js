@@ -1,4 +1,8 @@
 "use strict";
+// import express, { NextFunction } from 'express';
+// import { Middleware, callback } from './middleware';
+// import jwt, { JwtPayload } from 'jsonwebtoken';
+// import { User } from '../models/user';
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -21,29 +25,30 @@ class AuthMiddleware extends middleware_1.Middleware {
         super(app);
     }
     handle(req, res, next) {
+        var _a;
         return __awaiter(this, void 0, void 0, function* () {
             console.log("hii auth middleware");
-            const token = req.cookies.token || (typeof req.headers['authorization'] === 'string' ? req.headers['authorization'].replace('Bearer ', '') : '');
+            const token = ((_a = req.cookies) === null || _a === void 0 ? void 0 : _a.token) || (typeof req.headers['authorization'] === 'string' ? req.headers['authorization'].replace('Bearer ', '') : '');
             if (!token) {
-                return res.Error("You are not a valid user");
+                return res.status(401).json({ message: "You are not a valid user" });
             }
             try {
                 const decode = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET);
                 const user = yield user_1.User.findByPk(decode.id, {
                     attributes: ['id', 'firstName', 'email', 'role']
                 });
-                if (!user)
-                    return res.Error("You are not a valid user");
-                req.user = user;
-                // console.log(user)
-                next();
+                if (!user) {
+                    return res.status(401).json({ message: "You are not a valid user" });
+                }
+                req.user = user; // Ensure req.user exists in your type definition
+                next(); // Proceed to the next middleware
             }
             catch (err) {
-                console.log("Error in authentication");
-                return res.Error("Error in authentication");
+                console.error("Error in authentication:", err);
+                return res.status(401).json({ message: "Error in authentication" });
             }
         });
     }
 }
 exports.AuthMiddleware = AuthMiddleware;
-//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYXV0aC1taWRkbGV3YXJlcy5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NyYy9taWRkbGV3YXJlcy9hdXRoLW1pZGRsZXdhcmVzLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7OztBQUNBLDZDQUFvRDtBQUNwRCxnRUFBZ0Q7QUFDaEQseUNBQXNDO0FBRXRDLE1BQWEsY0FBZSxTQUFRLHVCQUFVO0lBRTFDLFlBQVksR0FBd0I7UUFDaEMsS0FBSyxDQUFDLEdBQUcsQ0FBQyxDQUFDO0lBQ2YsQ0FBQztJQUVLLE1BQU0sQ0FBQyxHQUFvQixFQUFFLEdBQXFCLEVBQUUsSUFBYzs7WUFDcEUsT0FBTyxDQUFDLEdBQUcsQ0FBQyxxQkFBcUIsQ0FBQyxDQUFBO1lBQ2xDLE1BQU0sS0FBSyxHQUFHLEdBQUcsQ0FBQyxPQUFPLENBQUMsS0FBSyxJQUFJLENBQUMsT0FBTyxHQUFHLENBQUMsT0FBTyxDQUFDLGVBQWUsQ0FBQyxLQUFLLFFBQVEsQ0FBQyxDQUFDLENBQUMsR0FBRyxDQUFDLE9BQU8sQ0FBQyxlQUFlLENBQUMsQ0FBQyxPQUFPLENBQUMsU0FBUyxFQUFFLEVBQUUsQ0FBQyxDQUFDLENBQUMsQ0FBQyxFQUFFLENBQUMsQ0FBQztZQUNqSixJQUFHLENBQUMsS0FBSyxFQUFFO2dCQUNQLE9BQU8sR0FBRyxDQUFDLEtBQUssQ0FBQywwQkFBMEIsQ0FBQyxDQUFDO2FBQ2hEO1lBQ0QsSUFBRztnQkFDQyxNQUFNLE1BQU0sR0FBRyxzQkFBRyxDQUFDLE1BQU0sQ0FBQyxLQUFLLEVBQUUsT0FBTyxDQUFDLEdBQUcsQ0FBQyxVQUFVLENBQWUsQ0FBQztnQkFDdkUsTUFBTSxJQUFJLEdBQUcsTUFBTSxXQUFJLENBQUMsUUFBUSxDQUFDLE1BQU0sQ0FBQyxFQUFFLEVBQUM7b0JBQ3ZDLFVBQVUsRUFBRSxDQUFDLElBQUksRUFBQyxXQUFXLEVBQUMsT0FBTyxFQUFFLE1BQU0sQ0FBQztpQkFDakQsQ0FBQyxDQUFDO2dCQUNILElBQUcsQ0FBQyxJQUFJO29CQUFFLE9BQU8sR0FBRyxDQUFDLEtBQUssQ0FBQywwQkFBMEIsQ0FBQyxDQUFDO2dCQUN2RCxHQUFHLENBQUMsSUFBSSxHQUFHLElBQUksQ0FBQztnQkFDaEIsb0JBQW9CO2dCQUNwQixJQUFJLEVBQUUsQ0FBQzthQUNWO1lBQUEsT0FBTSxHQUFHLEVBQUM7Z0JBQ1AsT0FBTyxDQUFDLEdBQUcsQ0FBQyx5QkFBeUIsQ0FBQyxDQUFBO2dCQUN0QyxPQUFPLEdBQUcsQ0FBQyxLQUFLLENBQUMseUJBQXlCLENBQUMsQ0FBQzthQUMvQztRQUNMLENBQUM7S0FBQTtDQUNKO0FBMUJELHdDQTBCQyJ9
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYXV0aC1taWRkbGV3YXJlcy5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NyYy9taWRkbGV3YXJlcy9hdXRoLW1pZGRsZXdhcmVzLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSxtREFBbUQ7QUFDbkQsdURBQXVEO0FBQ3ZELGtEQUFrRDtBQUNsRCx5Q0FBeUM7Ozs7Ozs7Ozs7Ozs7OztBQStCekMsNkNBQTBDO0FBQzFDLGdFQUErQztBQUMvQyx5Q0FBc0M7QUFFdEMsTUFBYSxjQUFlLFNBQVEsdUJBQVU7SUFDMUMsWUFBWSxHQUF3QjtRQUNoQyxLQUFLLENBQUMsR0FBRyxDQUFDLENBQUM7SUFDZixDQUFDO0lBRUssTUFBTSxDQUFDLEdBQVksRUFBRSxHQUFhLEVBQUUsSUFBa0I7OztZQUN4RCxPQUFPLENBQUMsR0FBRyxDQUFDLHFCQUFxQixDQUFDLENBQUM7WUFFbkMsTUFBTSxLQUFLLEdBQUcsQ0FBQSxNQUFBLEdBQUcsQ0FBQyxPQUFPLDBDQUFFLEtBQUssS0FBSSxDQUFDLE9BQU8sR0FBRyxDQUFDLE9BQU8sQ0FBQyxlQUFlLENBQUMsS0FBSyxRQUFRLENBQUMsQ0FBQyxDQUFDLEdBQUcsQ0FBQyxPQUFPLENBQUMsZUFBZSxDQUFDLENBQUMsT0FBTyxDQUFDLFNBQVMsRUFBRSxFQUFFLENBQUMsQ0FBQyxDQUFDLENBQUMsRUFBRSxDQUFDLENBQUM7WUFFbEosSUFBSSxDQUFDLEtBQUssRUFBRTtnQkFDUixPQUFPLEdBQUcsQ0FBQyxNQUFNLENBQUMsR0FBRyxDQUFDLENBQUMsSUFBSSxDQUFDLEVBQUUsT0FBTyxFQUFFLDBCQUEwQixFQUFFLENBQUMsQ0FBQzthQUN4RTtZQUVELElBQUk7Z0JBQ0EsTUFBTSxNQUFNLEdBQUcsc0JBQUcsQ0FBQyxNQUFNLENBQUMsS0FBSyxFQUFFLE9BQU8sQ0FBQyxHQUFHLENBQUMsVUFBb0IsQ0FBZSxDQUFDO2dCQUNqRixNQUFNLElBQUksR0FBRyxNQUFNLFdBQUksQ0FBQyxRQUFRLENBQUMsTUFBTSxDQUFDLEVBQUUsRUFBRTtvQkFDeEMsVUFBVSxFQUFFLENBQUMsSUFBSSxFQUFFLFdBQVcsRUFBRSxPQUFPLEVBQUUsTUFBTSxDQUFDO2lCQUNuRCxDQUFDLENBQUM7Z0JBRUgsSUFBSSxDQUFDLElBQUksRUFBRTtvQkFDUCxPQUFPLEdBQUcsQ0FBQyxNQUFNLENBQUMsR0FBRyxDQUFDLENBQUMsSUFBSSxDQUFDLEVBQUUsT0FBTyxFQUFFLDBCQUEwQixFQUFFLENBQUMsQ0FBQztpQkFDeEU7Z0JBRUQsR0FBRyxDQUFDLElBQUksR0FBRyxJQUFJLENBQUMsQ0FBQyxpREFBaUQ7Z0JBQ2xFLElBQUksRUFBRSxDQUFDLENBQUMsaUNBQWlDO2FBQzVDO1lBQUMsT0FBTyxHQUFHLEVBQUU7Z0JBQ1YsT0FBTyxDQUFDLEtBQUssQ0FBQywwQkFBMEIsRUFBRSxHQUFHLENBQUMsQ0FBQztnQkFDL0MsT0FBTyxHQUFHLENBQUMsTUFBTSxDQUFDLEdBQUcsQ0FBQyxDQUFDLElBQUksQ0FBQyxFQUFFLE9BQU8sRUFBRSx5QkFBeUIsRUFBRSxDQUFDLENBQUM7YUFDdkU7O0tBQ0o7Q0FDSjtBQS9CRCx3Q0ErQkMifQ==

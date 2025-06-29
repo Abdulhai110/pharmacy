@@ -1,6 +1,6 @@
 import { QueryInterface, DataTypes, QueryTypes } from "sequelize";
 import Sequelize from "sequelize";
-import { StatusEnum } from "../../constants/enum";
+import { LoanTypeEnum, StatusEnum } from "../../constants/enum";
 import { enumKeys } from "../../helpers/helper";
 module.exports = {
   up: (queryInterface: QueryInterface) => {
@@ -10,38 +10,40 @@ module.exports = {
         primaryKey: true,
         autoIncrement: true,
       },
-      loan_taker_id: {
+      loanTakerId: {
         type: DataTypes.BIGINT.UNSIGNED,
         allowNull: false,
       },
       date: {
-        type: DataTypes.DATEONLY,
+        type: DataTypes.DATE,
         allowNull: false,
+        defaultValue: DataTypes.NOW
       },
-      return_date: {
-        type: DataTypes.DATEONLY,
+      returnDate: {
+        type: DataTypes.DATE,
         allowNull: true,
+        defaultValue: DataTypes.NOW
       },
-      loan_type: {
-        type: DataTypes.ENUM("cash", "items"),
+      loanType: {
+        type: DataTypes.ENUM(...enumKeys(LoanTypeEnum)),
         allowNull: false,
-        defaultValue: "cash",
+        defaultValue: LoanTypeEnum.money,
       },
       amount: {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
-      installment_amount: {
+      installmentAmount: {
         type: DataTypes.INTEGER,
         defaultValue: 0,
         allowNull: true,
       },
-      installment_count: {
+      installmentCount: {
         type: DataTypes.INTEGER,
         defaultValue: 0,
         allowNull: true,
       },
-      bill_no: {
+      billNo: {
         type: DataTypes.INTEGER,
         allowNull: true,
       },
@@ -53,15 +55,13 @@ module.exports = {
         defaultValue: StatusEnum.Active,
       },
       createdAt: {
-        type: "TIMESTAMP",
-        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
+        type: Sequelize.DATE,
+        defaultValue: DataTypes.NOW,
         allowNull: false,
       },
       updatedAt: {
-        type: "TIMESTAMP",
-        defaultValue: Sequelize.literal(
-          "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-        ),
+        type: Sequelize.DATE,
+        defaultValue: DataTypes.NOW,
         allowNull: false,
       },
     });

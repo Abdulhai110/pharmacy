@@ -10,7 +10,7 @@ module.exports = {
         primaryKey: true,
         autoIncrement: true,
       },
-      distributor_id: {
+      distributorId: {
         type: DataTypes.BIGINT.UNSIGNED,
         allowNull: false,
       },
@@ -18,37 +18,45 @@ module.exports = {
       //     type: DataTypes.BIGINT.UNSIGNED,
       //     allowNull: false,
       // },
-      credit_date: {
-        type: DataTypes.DATEONLY,
+      date: {
+        type: DataTypes.DATE,
         allowNull: false,
+        defaultValue: DataTypes.NOW
       },
       description: {
         type: DataTypes.STRING(100),
       },
-      credit_amount: {
+      amount: {
         type: DataTypes.INTEGER,
         defaultValue: 0,
         allowNull: false,
       },
-
-      payment_source: {
-        type: DataTypes.ENUM(...enumKeys(PaymentSourceEnum)),
-        defaultValue: PaymentSourceEnum.CASH,
+      gstAmount: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+        allowNull: true,
+      },
+      advTaxAmount: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+        allowNull: true,
+      },
+      paymentSourceId: {
+        type: DataTypes.BIGINT.UNSIGNED,
+        allowNull: true,
       },
       status: {
         type: DataTypes.ENUM(...enumKeys(StatusEnum)),
         defaultValue: StatusEnum.Active,
       },
       createdAt: {
-        type: "TIMESTAMP",
-        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
+        type: Sequelize.DATE,
+        defaultValue: DataTypes.NOW,
         allowNull: false,
       },
       updatedAt: {
-        type: "TIMESTAMP",
-        defaultValue: Sequelize.literal(
-          "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-        ),
+        type: Sequelize.DATE,
+        defaultValue: DataTypes.NOW,
         allowNull: false,
       },
     });

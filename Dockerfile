@@ -1,7 +1,21 @@
-FROM node
+# Use official Node image
+FROM node:18
 
-WORKDIR /`app
-COPY package.json .
+WORKDIR /app
+
+# Copy only package files first for layer caching
+COPY package*.json ./
+
+# Install only production deps
 RUN npm install
+
+# Copy rest of the code
 COPY . .
-CMD npx sequelize db:migrate;npm run startDev;
+
+# Build the TypeScript code
+RUN npm run build
+
+EXPOSE 8000
+
+# Run compiled app
+CMD ["npm", "start"]

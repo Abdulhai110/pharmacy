@@ -26,17 +26,17 @@ module.exports = {
         type: DataTypes.STRING(50),
         allowNull: false,
       },
-      loan_amount: {
+      loanAmount: {
         type: DataTypes.INTEGER,
         defaultValue: 0,
         allowNull: false,
       },
-      remaining_amount: {
+      remainingAmount: {
         type: DataTypes.INTEGER,
         defaultValue: 0,
         allowNull: true,
       },
-      paid_amount: {
+      paidAmount: {
         type: DataTypes.INTEGER,
         defaultValue: 0,
         allowNull: true,
@@ -46,15 +46,13 @@ module.exports = {
         defaultValue: StatusEnum.Active,
       },
       createdAt: {
-        type: "TIMESTAMP",
-        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
+        type: Sequelize.DATE,
+        defaultValue: DataTypes.NOW,
         allowNull: false,
       },
       updatedAt: {
-        type: "TIMESTAMP",
-        defaultValue: Sequelize.literal(
-          "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-        ),
+        type: Sequelize.DATE,
+        defaultValue: DataTypes.NOW,
         allowNull: false,
       },
     });

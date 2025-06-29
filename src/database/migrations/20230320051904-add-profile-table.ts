@@ -1,5 +1,6 @@
 import { User } from "../../models/user";
-import { QueryInterface, DataTypes, QueryTypes, Sequelize } from "sequelize";
+import { QueryInterface, DataTypes, QueryTypes } from "sequelize";
+import Sequelize from "sequelize";
 
 module.exports = {
   up: (queryInterface: QueryInterface) => {
@@ -28,15 +29,13 @@ module.exports = {
         allowNull: true,
       },
       createdAt: {
-        type: "TIMESTAMP",
-        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
+        type: Sequelize.DATE,
+        defaultValue: DataTypes.NOW,
         allowNull: false,
       },
       updatedAt: {
-        type: "TIMESTAMP",
-        defaultValue: Sequelize.literal(
-          "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-        ),
+        type: Sequelize.DATE,
+        defaultValue: DataTypes.NOW,
         allowNull: false,
       },
     });
