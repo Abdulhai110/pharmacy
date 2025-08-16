@@ -62,6 +62,11 @@ export class ExpenseController {
                     await transaction.rollback();
                     return ResponseHandler.error(res, "Account not found", 404);
                 }
+
+                if (Number(account.balance) < Number(value.amount)) {
+                    await transaction.rollback();
+                    return ResponseHandler.error(res, "Insufficient account balance", 400);
+                }
             }
 
             const expense = await Expense.create(value, { transaction: transaction });

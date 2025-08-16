@@ -89,26 +89,33 @@ export class DistributorCreditController {
     try {
 
       if (value.paymentSourceId && value.paymentSourceId > 0) {
+        console.log(value.paymentSourceId, value.amount)
         const account = await Account.findByPk(Number(value.paymentSourceId), { transaction: transaction });
 
         if (!account) {
           await transaction.rollback();
           return ResponseHandler.error(res, "Invalid account/payment source", 404);
         }
-        account.balance = Number(account.balance) + Number(value.amount);
+
+        if (Number(account.balance) < Number(value.amount)) {
+          await transaction.rollback();
+          return ResponseHandler.error(res, "Insufficient account balance", 400);
+        }
+
+        account.balance = Number(account.balance) - Number(value.amount);
         await account.save({ transaction: transaction });
       }
       const instance = await DistributorCredit.create(value, { transaction });
 
-      const loanTaker = await Distributor.findOne({ where: { id: value.distributorId }, transaction });
+      const distributor = await Distributor.findOne({ where: { id: value.distributorId }, transaction });
 
-      if (!loanTaker) {
+      if (!distributor) {
         await transaction.rollback();
         return ResponseHandler.error(res, "Invalid distributor ID", 400);
       }
       const updatedLoanData = {
-        paidAmount: Number(loanTaker.paidAmount) + Number(value.amount),
-        remainingAmount: Number(loanTaker.remainingAmount) - Number(value.amount),
+        paidAmount: Number(distributor.paidAmount) + Number(value.amount),
+        remainingAmount: Number(distributor.remainingAmount) - Number(value.amount),
       };
 
       await Distributor.update(updatedLoanData, { where: { id: value.distributorId }, transaction });
